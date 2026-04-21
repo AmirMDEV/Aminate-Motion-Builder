@@ -20,3 +20,5 @@
 - Added baseline caching and stale-modern recovery so reloading the plugin no longer causes the `MotionBuilder` theme to capture the old modern host restyle as its default
 - Retuned modern-theme buttons across the Aminate panel, launcher, host toolbar controls, and donate CTA so the custom mode reads as a more intentionally modern dark UI
 - Retuned modern-theme tab headers across both host MotionBuilder panes and Aminate-local tabs with rounder shapes, clearer hover hierarchy, and stronger selected-state separation
+- Retuned remaining modern-theme chrome such as dock title bars, dock utility buttons, combo dropdown lanes, popup lists, and status seams to replace more of the lingering native default styling
+- Tightened the remaining modern-theme utility chrome again with stronger group-box title chips, menu pressed and separator states, spin-box subcontrols, and status-label styling to reduce the last obvious stock Qt surfaces
