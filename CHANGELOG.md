@@ -11,3 +11,5 @@
 - Documented broader MotionBuilder compatibility strategy
 - Retuned the modern MotionBuilder theme to match the supplied full-app reference image more closely
 - Refined lower-half modern theme parity for transport controls, pane tabs, splitters, group boxes, and list regions
+- Refined modern theme iconography for toolbar chrome, dropdown lanes, separators, and control chips
+- Tightened modern theme typography and spacing across the Aminate dock header, cards, button grids, notes, and status areas
