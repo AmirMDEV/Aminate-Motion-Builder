@@ -723,6 +723,9 @@ _APP_THEME_BASELINE = None
 _APP_THEME_OWNED = False
 _APP_THEME_BASELINE_PALETTE = None
 _APP_THEME_BASELINE_STYLE = None
+APP_BASELINE_STYLESHEET_ATTR = "_aminate_mobu_baseline_stylesheet"
+APP_BASELINE_PALETTE_ATTR = "_aminate_mobu_baseline_palette"
+APP_BASELINE_STYLE_ATTR = "_aminate_mobu_baseline_style"
 
 
 def _now():
@@ -883,6 +886,117 @@ def _qt_application():
     if QtWidgets is None:
         return None
     return QtWidgets.QApplication.instance()
+
+
+def _theme_string_is_modern(stylesheet):
+    return (stylesheet or "").strip() == _app_theme_stylesheet(THEME_MODERN).strip()
+
+
+def _sync_baseline_from_app_cache(app=None):
+    global _APP_THEME_BASELINE, _APP_THEME_BASELINE_PALETTE, _APP_THEME_BASELINE_STYLE
+    app = app or _qt_application()
+    if app is None:
+        return False
+    changed = False
+    try:
+        cached_stylesheet = getattr(app, APP_BASELINE_STYLESHEET_ATTR, None)
+        if cached_stylesheet is not None and _APP_THEME_BASELINE is None:
+            _APP_THEME_BASELINE = cached_stylesheet
+            changed = True
+    except Exception:
+        pass
+    try:
+        cached_palette = getattr(app, APP_BASELINE_PALETTE_ATTR, None)
+        if cached_palette is not None and _APP_THEME_BASELINE_PALETTE is None:
+            _APP_THEME_BASELINE_PALETTE = _copy_palette(cached_palette)
+            changed = True
+    except Exception:
+        pass
+    try:
+        cached_style = getattr(app, APP_BASELINE_STYLE_ATTR, None)
+        if cached_style is not None and _APP_THEME_BASELINE_STYLE is None:
+            _APP_THEME_BASELINE_STYLE = cached_style
+            changed = True
+    except Exception:
+        pass
+    return changed
+
+
+def _store_baseline_on_app(app=None):
+    app = app or _qt_application()
+    if app is None:
+        return False
+    try:
+        setattr(app, APP_BASELINE_STYLESHEET_ATTR, _APP_THEME_BASELINE)
+    except Exception:
+        pass
+    try:
+        setattr(app, APP_BASELINE_PALETTE_ATTR, _copy_palette(_APP_THEME_BASELINE_PALETTE))
+    except Exception:
+        pass
+    try:
+        setattr(app, APP_BASELINE_STYLE_ATTR, _APP_THEME_BASELINE_STYLE)
+    except Exception:
+        pass
+    return True
+
+
+def _reset_to_best_effort_native(app):
+    if app is None:
+        return False
+    try:
+        app.setStyleSheet("")
+    except Exception:
+        pass
+    style_applied = False
+    if QtWidgets is not None and hasattr(QtWidgets, "QStyleFactory"):
+        try:
+            keys = [str(key) for key in QtWidgets.QStyleFactory.keys()]
+        except Exception:
+            keys = []
+        preferred = None
+        for wanted in ("WindowsVista", "Windows11", "Windows", "Fusion"):
+            for key in keys:
+                if key.lower() == wanted.lower():
+                    preferred = key
+                    break
+            if preferred:
+                break
+        if preferred:
+            try:
+                app.setStyle(preferred)
+                style_applied = True
+            except Exception:
+                style_applied = False
+    try:
+        style = app.style()
+        if style is not None:
+            app.setPalette(style.standardPalette())
+    except Exception:
+        pass
+    return style_applied
+
+
+def prime_app_theme_baseline(force_reset=False):
+    global _APP_THEME_BASELINE, _APP_THEME_BASELINE_PALETTE, _APP_THEME_BASELINE_STYLE
+    app = _qt_application()
+    if app is None:
+        return False
+    _sync_baseline_from_app_cache(app)
+    if not force_reset and _APP_THEME_BASELINE is not None and _APP_THEME_BASELINE_PALETTE is not None:
+        return True
+    current_stylesheet = app.styleSheet() or ""
+    if force_reset or _theme_string_is_modern(current_stylesheet):
+        _reset_to_best_effort_native(app)
+        current_stylesheet = app.styleSheet() or ""
+    _APP_THEME_BASELINE = current_stylesheet
+    _APP_THEME_BASELINE_PALETTE = _copy_palette(app.palette())
+    try:
+        _APP_THEME_BASELINE_STYLE = app.style().objectName()
+    except Exception:
+        _APP_THEME_BASELINE_STYLE = None
+    _store_baseline_on_app(app)
+    return True
 
 
 def _clean_tooltip_key(text):
@@ -1201,6 +1315,7 @@ def _app_theme_stylesheet(theme_key):
 def _restore_app_theme():
     global _APP_THEME_BASELINE, _APP_THEME_OWNED, _APP_THEME_BASELINE_PALETTE, _APP_THEME_BASELINE_STYLE
     app = _qt_application()
+    _sync_baseline_from_app_cache(app)
     if app is None or not _APP_THEME_OWNED:
         return False
     try:
@@ -1225,15 +1340,7 @@ def _apply_app_theme(theme_key):
     if app is None:
         return False
     theme_key = _normalize_theme_key(theme_key)
-    if _APP_THEME_BASELINE is None:
-        _APP_THEME_BASELINE = app.styleSheet()
-    if _APP_THEME_BASELINE_PALETTE is None:
-        _APP_THEME_BASELINE_PALETTE = _copy_palette(app.palette())
-    if _APP_THEME_BASELINE_STYLE is None:
-        try:
-            _APP_THEME_BASELINE_STYLE = app.style().objectName()
-        except Exception:
-            _APP_THEME_BASELINE_STYLE = None
+    prime_app_theme_baseline(force_reset=theme_key == THEME_MOTIONBUILDER)
     if theme_key == THEME_MOTIONBUILDER:
         try:
             if _APP_THEME_BASELINE_STYLE:
@@ -1247,6 +1354,7 @@ def _apply_app_theme(theme_key):
             pass
         app.setStyleSheet(_APP_THEME_BASELINE or "")
         _APP_THEME_OWNED = False
+        _store_baseline_on_app(app)
         _refresh_qt_theme()
         return True
     try:
@@ -1394,6 +1502,7 @@ def _ensure_aminate_launcher_toolbar():
 
 
 def ensure_motionbuilder_ui_entry():
+    prime_app_theme_baseline()
     toolbar = _ensure_aminate_launcher_toolbar()
     install_easy_motionbuilder_tooltips()
     return toolbar
