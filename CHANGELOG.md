@@ -18,3 +18,4 @@
 - Added a host-wide easy tooltip pass for Qt-visible MotionBuilder menus, tabs, buttons, panels, and all Aminate controls, and restored the live Aminate launcher plus dock in MotionBuilder
 - Corrected theme behavior so `MotionBuilder` restores true native host styling and `Modern` owns the custom Aminate and host chrome restyle
 - Added baseline caching and stale-modern recovery so reloading the plugin no longer causes the `MotionBuilder` theme to capture the old modern host restyle as its default
+- Retuned modern-theme buttons across the Aminate panel, launcher, host toolbar controls, and donate CTA so the custom mode reads as a more intentionally modern dark UI

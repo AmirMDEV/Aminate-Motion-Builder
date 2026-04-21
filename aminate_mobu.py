@@ -201,42 +201,46 @@ QLabel#aminateMobuGroupHint {
     font-size: 11px;
 }
 QPushButton#aminateMobuThemeToggle {
-    background-color: #343A40;
-    border: 1px solid #4C545D;
-    border-radius: 3px;
-    padding: 4px 11px;
-    color: #E5E9ED;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #454C54, stop:1 #383F47);
+    border: 1px solid #5C6773;
+    border-radius: 6px;
+    padding: 5px 14px;
+    color: #EDF1F4;
+    font-weight: 600;
+    outline: none;
 }
 QPushButton#aminateMobuThemeToggle:hover {
-    background-color: #3B4148;
-    border-color: #5B6570;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4D555E, stop:1 #40474F);
+    border-color: #758291;
 }
 QPushButton#aminateMobuThemeToggle:pressed {
-    background-color: #434B54;
-    border-color: #6A7885;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #353C43, stop:1 #30363D);
+    border-color: #8394A5;
 }
 QPushButton,
 QToolButton {
-    background-color: #3C4248;
-    color: #E6EAED;
-    border: 1px solid #515A63;
-    border-radius: 3px;
-    padding: 4px 9px;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #485059, stop:1 #3A4148);
+    color: #EEF2F5;
+    border: 1px solid #5F6B77;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-weight: 600;
+    outline: none;
 }
 QPushButton:hover,
 QToolButton:hover {
-    background-color: #454C54;
-    border-color: #66717C;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #525B65, stop:1 #424A53);
+    border-color: #778697;
 }
 QPushButton:pressed,
 QToolButton:pressed {
-    background-color: #4B535C;
-    border-color: #73808E;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #383F46, stop:1 #31373E);
+    border-color: #8C9EB1;
 }
 QPushButton:checked,
 QToolButton:checked {
-    background-color: #4A5560;
-    border-color: #7A8B9C;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5A6776, stop:1 #485565);
+    border-color: #93A6BA;
 }
 QPushButton:disabled,
 QToolButton:disabled {
@@ -416,20 +420,21 @@ QToolBar::separator {
     margin: 4px 4px;
 }
 QToolButton#aminateMobuLauncherButton {
-    background: transparent;
-    border: 0px;
-    border-radius: 0px;
-    color: #D8DDE2;
-    padding: 4px 8px;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #444B53, stop:1 #383F46);
+    border: 1px solid #5B6671;
+    border-radius: 6px;
+    color: #EDF1F4;
+    padding: 4px 10px;
+    font-weight: 600;
 }
 QToolButton#aminateMobuLauncherButton:hover {
-    background-color: #474E55;
-    border: 1px solid #545D68;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4E5660, stop:1 #414851);
+    border: 1px solid #788595;
 }
 QToolButton#aminateMobuLauncherButton:pressed,
 QToolButton#aminateMobuLauncherButton:checked {
-    background-color: #4E5761;
-    border: 1px solid #657381;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #394047, stop:1 #32383F);
+    border: 1px solid #90A1B4;
 }
 QPushButton,
 QToolButton,
@@ -438,30 +443,30 @@ QAbstractSpinBox,
 QLineEdit,
 QPlainTextEdit,
 QTextEdit {
-    background-color: #3E444A;
-    color: #E1E6EA;
-    border: 1px solid #545D67;
-    border-radius: 3px;
-    padding: 3px 7px;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #464E56, stop:1 #3A4148);
+    color: #E8EDF0;
+    border: 1px solid #606C79;
+    border-radius: 6px;
+    padding: 4px 9px;
 }
 QToolBar QToolButton,
 QToolBar QComboBox,
 QToolBar QAbstractSpinBox {
-    background-color: #3B4147;
-    border: 1px solid transparent;
-    border-radius: 2px;
-    padding: 2px 5px;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #444C54, stop:1 #383F46);
+    border: 1px solid #59636E;
+    border-radius: 6px;
+    padding: 3px 7px;
 }
 QToolBar QToolButton:hover,
 QToolBar QComboBox:hover,
 QToolBar QAbstractSpinBox:hover {
-    background-color: #434A51;
-    border-color: #5D6670;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4E5660, stop:1 #404850);
+    border-color: #748291;
 }
 QToolBar QToolButton:pressed,
 QToolBar QToolButton:checked {
-    background-color: #4B5660;
-    border-color: #748291;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #394047, stop:1 #32383F);
+    border-color: #90A1B4;
 }
 QToolBar QComboBox::drop-down {
     subcontrol-origin: padding;
@@ -477,19 +482,27 @@ QPushButton:hover,
 QToolButton:hover,
 QComboBox:hover,
 QAbstractSpinBox:hover {
-    background-color: #474E56;
-    border-color: #687480;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #525B65, stop:1 #434B54);
+    border-color: #788797;
 }
 QPushButton:pressed,
 QToolButton:pressed {
-    background-color: #4E5761;
-    border-color: #738190;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #393F46, stop:1 #32383F);
+    border-color: #8EA0B4;
 }
 QPushButton:checked,
 QToolButton:checked,
 QToolButton:selected {
-    background-color: #4F5964;
-    border-color: #7A8B9D;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5E6D7E, stop:1 #4A5869);
+    border-color: #96AABC;
+}
+QPushButton:disabled,
+QToolButton:disabled,
+QComboBox:disabled,
+QAbstractSpinBox:disabled {
+    background-color: #31363B;
+    color: #7F8891;
+    border-color: #49515A;
 }
 QLineEdit:focus,
 QPlainTextEdit:focus,
@@ -1404,15 +1417,15 @@ def _style_donate_button(button, theme_key=None):
             background-color: #F3C54A;
             color: #1B1B1B;
             border: 1px solid #DAAE37;
-            border-radius: 10px;
-            padding: 6px 14px;
+            border-radius: 12px;
+            padding: 7px 15px;
             font-weight: 600;
         }
         QPushButton:hover {
-            background-color: #F8D163;
+            background-color: #F7D46A;
         }
         QPushButton:pressed {
-            background-color: #E2B53F;
+            background-color: #DEB03A;
         }
         """
     )
