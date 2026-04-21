@@ -1,0 +1,15 @@
+{
+  "package_name": "Aminate Mobu",
+  "version": "Version 0.1 BETA",
+  "release_tag": "v0.1-beta",
+  "license": "Aminate Proprietary Source-Available License",
+  "license_file": "LICENSE",
+  "public_repository": "https://github.com/AmirMDEV/aminate-public",
+  "follow_amir": "https://followamir.com",
+  "donation_url": "https://www.paypal.com/donate/?hosted_button_id=2U2GXSKFJKJCA",
+  "runtime_files": [
+    "aminate_mobu.py",
+    "aminate_mobu_history.py",
+    "launch_aminate_mobu.py"
+  ]
+}

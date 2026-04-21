@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+*.log
+scratch_*.png
+scratch_*.jpg
+scratch_*.json
+*_report.json
+_tmp*
+mobu_history_test/
