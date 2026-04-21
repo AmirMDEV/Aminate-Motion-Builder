@@ -13,3 +13,4 @@
 - Refined lower-half modern theme parity for transport controls, pane tabs, splitters, group boxes, and list regions
 - Refined modern theme iconography for toolbar chrome, dropdown lanes, separators, and control chips
 - Tightened modern theme typography and spacing across the Aminate dock header, cards, button grids, notes, and status areas
+- Added an imagegen-based Aminate launcher icon asset and wired the MotionBuilder toolbar button to use text plus icon with package-safe asset copying

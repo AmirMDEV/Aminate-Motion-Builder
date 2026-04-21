@@ -65,6 +65,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
+LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
     os.path.expanduser("~"),
@@ -1225,6 +1226,12 @@ def _on_qt_panel_destroyed(*_args):
     _restore_app_theme()
 
 
+def _launcher_icon_path():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    icon_path = os.path.join(base_dir, LAUNCHER_ICON_RELATIVE_PATH)
+    return icon_path if os.path.isfile(icon_path) else None
+
+
 def _ensure_aminate_launcher_toolbar():
     global _QT_LAUNCHER_TOOLBAR
     global _QT_LAUNCHER_ACTION
@@ -1243,12 +1250,19 @@ def _ensure_aminate_launcher_toolbar():
         toolbar.setObjectName(QT_LAUNCHER_TOOLBAR_OBJECT_NAME)
         toolbar.setMovable(True)
         toolbar.setFloatable(False)
-        toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
+        toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        toolbar.setIconSize(QtCore.QSize(18, 18))
         action = toolbar.addAction("Aminate")
         try:
             action.triggered.connect(lambda _checked=False: launch_aminate_mobu())
         except Exception:
             pass
+        icon_path = _launcher_icon_path()
+        if icon_path and QtGui is not None:
+            try:
+                action.setIcon(QtGui.QIcon(icon_path))
+            except Exception:
+                pass
         widget = toolbar.widgetForAction(action)
         if widget is not None:
             widget.setObjectName(QT_LAUNCHER_BUTTON_OBJECT_NAME)
@@ -1259,6 +1273,12 @@ def _ensure_aminate_launcher_toolbar():
     else:
         action_list = list(_QT_LAUNCHER_TOOLBAR.actions())
         _QT_LAUNCHER_ACTION = action_list[0] if action_list else _QT_LAUNCHER_TOOLBAR.addAction("Aminate")
+        icon_path = _launcher_icon_path()
+        if icon_path and QtGui is not None:
+            try:
+                _QT_LAUNCHER_ACTION.setIcon(QtGui.QIcon(icon_path))
+            except Exception:
+                pass
         widget = _QT_LAUNCHER_TOOLBAR.widgetForAction(_QT_LAUNCHER_ACTION)
         if widget is not None:
             widget.setObjectName(QT_LAUNCHER_BUTTON_OBJECT_NAME)

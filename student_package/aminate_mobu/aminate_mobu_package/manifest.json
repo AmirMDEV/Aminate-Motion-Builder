@@ -12,5 +12,8 @@
     "aminate_mobu_history.py",
     "install_motionbuilder_startup.py",
     "launch_aminate_mobu.py"
+  ],
+  "asset_dirs": [
+    "assets"
   ]
 }

@@ -22,6 +22,9 @@ RUNTIME_FILES = [
     "install_motionbuilder_startup.py",
     "launch_aminate_mobu.py",
 ]
+ASSET_DIRS = [
+    "assets",
+]
 
 
 def build_student_package():
@@ -33,6 +36,10 @@ def build_student_package():
 
     for file_name in RUNTIME_FILES:
         shutil.copy2(str(REPO_ROOT / file_name), str(PAYLOAD_ROOT / file_name))
+    for dir_name in ASSET_DIRS:
+        source_dir = REPO_ROOT / dir_name
+        if source_dir.exists():
+            shutil.copytree(str(source_dir), str(PAYLOAD_ROOT / dir_name))
     shutil.copy2(str(REPO_ROOT / LICENSE_FILE_NAME), str(PAYLOAD_ROOT / LICENSE_FILE_NAME))
     shutil.copy2(str(REPO_ROOT / LICENSE_FILE_NAME), str(PACKAGE_ROOT / LICENSE_FILE_NAME))
 
@@ -46,6 +53,7 @@ def build_student_package():
         "follow_amir": FOLLOW_AMIR_URL,
         "donation_url": DONATE_URL,
         "runtime_files": list(RUNTIME_FILES),
+        "asset_dirs": list(ASSET_DIRS),
     }
     with (PAYLOAD_ROOT / MANIFEST_FILE_NAME).open("w", encoding="utf-8", newline="\n") as handle:
         handle.write(json.dumps(manifest, indent=2))
