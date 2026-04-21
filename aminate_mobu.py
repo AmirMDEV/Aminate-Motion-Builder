@@ -299,32 +299,36 @@ QGroupBox::title {
     color: #DDE2E6;
 }
 QTabWidget::pane {
-    border: 1px solid #4A525B;
-    border-radius: 2px;
+    border: 1px solid #55606B;
+    border-radius: 7px;
     top: -1px;
     background-color: #343940;
+    padding: 3px;
 }
 QTabBar::tab {
-    background-color: #363C42;
-    color: #CDD4DB;
-    border: 1px solid #49515A;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3A4148, stop:1 #32383F);
+    color: #C5CED6;
+    border: 1px solid #4E5862;
     border-bottom: 0px;
-    border-top-left-radius: 2px;
-    border-top-right-radius: 2px;
-    padding: 5px 10px;
-    margin-right: 2px;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    padding: 6px 13px;
+    margin-right: 4px;
+    min-width: 44px;
 }
 QTabBar::tab:hover {
-    background-color: #41484F;
-    color: #E6EBEF;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #474F58, stop:1 #394149);
+    color: #EDF1F4;
+    border-color: #6C7A89;
 }
 QTabBar::tab:selected {
-    background-color: #566472;
-    color: #F2F4F6;
-    border-color: #7F91A3;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #607082, stop:1 #4B5A6B);
+    color: #F4F6F8;
+    border-color: #94A8BC;
+    padding-bottom: 7px;
 }
 QTabBar::tab:!selected {
-    margin-top: 1px;
+    margin-top: 3px;
 }
 QSplitter::handle:horizontal {
     width: 2px;
@@ -518,32 +522,36 @@ QHeaderView::section {
     padding: 3px 8px;
 }
 QTabWidget::pane {
-    border: 1px solid #4F5861;
+    border: 1px solid #58636E;
+    border-radius: 7px;
     top: -1px;
     background-color: #383E44;
+    padding: 3px;
 }
 QTabBar::tab {
-    background-color: #363C42;
-    color: #CDD3D9;
-    border: 1px solid #4A535D;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3D444C, stop:1 #333941);
+    color: #C7D0D8;
+    border: 1px solid #505B66;
     border-bottom: 0px;
-    border-top-left-radius: 2px;
-    border-top-right-radius: 2px;
-    padding: 4px 9px;
-    margin-right: 2px;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    padding: 5px 12px;
+    margin-right: 4px;
+    min-width: 42px;
 }
 QTabBar::tab:hover {
-    background-color: #434A52;
-    color: #ECF0F2;
-    border-color: #65707C;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #49515A, stop:1 #3C444D);
+    color: #F0F3F5;
+    border-color: #738292;
 }
 QTabBar::tab:selected {
-    background-color: #596A7B;
-    color: #F2F4F5;
-    border-color: #8396A8;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #65778A, stop:1 #4F6072);
+    color: #F4F6F7;
+    border-color: #9AAFC2;
+    padding-bottom: 6px;
 }
 QTabBar::tab:!selected {
-    margin-top: 1px;
+    margin-top: 3px;
 }
 QTreeView,
 QListView,
