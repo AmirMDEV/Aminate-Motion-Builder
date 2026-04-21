@@ -9,3 +9,4 @@
 - Copied current MotionBuilder package and smoke scripts
 - Expanded startup installer to target all detected MotionBuilder version folders
 - Documented broader MotionBuilder compatibility strategy
+- Retuned the modern MotionBuilder theme to match the supplied full-app reference image more closely
