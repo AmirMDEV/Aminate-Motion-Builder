@@ -7,3 +7,5 @@
 - Added MotionBuilder toolbar button entry
 - Added startup bootstrap installer path
 - Copied current MotionBuilder package and smoke scripts
+- Expanded startup installer to target all detected MotionBuilder version folders
+- Documented broader MotionBuilder compatibility strategy

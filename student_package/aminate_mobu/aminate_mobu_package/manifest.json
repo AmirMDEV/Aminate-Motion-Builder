@@ -10,6 +10,7 @@
   "runtime_files": [
     "aminate_mobu.py",
     "aminate_mobu_history.py",
+    "install_motionbuilder_startup.py",
     "launch_aminate_mobu.py"
   ]
 }

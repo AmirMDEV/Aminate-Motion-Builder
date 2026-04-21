@@ -39,21 +39,38 @@ from pyfbsdk import (
     FBStringList,
     FBSystem,
     FBTextJustify,
+    FBToolPossibleDockPosition,
 )
 import pyfbsdk_additions
 
 try:
     from PySide6 import QtCore, QtGui, QtWidgets
+    from shiboken6 import getCppPointer, wrapInstance
 except Exception:  # pragma: no cover - MotionBuilder fallback
-    QtCore = None
-    QtGui = None
-    QtWidgets = None
+    try:  # pragma: no cover - older MotionBuilder fallback
+        from PySide2 import QtCore, QtGui, QtWidgets
+        from shiboken2 import getCppPointer, wrapInstance
+    except Exception:  # pragma: no cover - no Qt bridge available
+        QtCore = None
+        QtGui = None
+        QtWidgets = None
+        getCppPointer = None
+        wrapInstance = None
 
 
 TOOL_NAME = "Aminate Mobu"
 TOOL_VERSION = "Version 0.1 BETA"
 TOOL_DOC_TAG = "aminate_mobu_tool"
 QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
+QT_DOCK_OBJECT_NAME = "aminateMobuDock"
+QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
+QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
+STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
+MB_DOCUMENTS_ROOT = os.path.join(
+    os.path.expanduser("~"),
+    "Documents",
+    "MB",
+)
 FOLLOW_AMIR_URL = "https://followamir.com"
 DEFAULT_DONATE_URL = "https://www.paypal.com/donate/?hosted_button_id=2U2GXSKFJKJCA"
 DONATE_URL = os.environ.get("AMIR_PAYPAL_DONATE_URL") or os.environ.get("AMIR_DONATE_URL") or DEFAULT_DONATE_URL
@@ -84,7 +101,7 @@ UNLABELLED_MARKER_PATTERN = re.compile(r"^(marker|tmpmarker|unnamedmarker)(?:\s+
 CONTROL_RIG_PROPERTY_NAMES = {"Lcl Translation", "Lcl Rotation"}
 AMINATE_MOBU_LOCAL_STYLESHEETS = {
 THEME_MOTIONBUILDER: """
-QDialog#aminateMobuWindow {
+QWidget#aminateMobuWindow {
     background-color: #3A3A3A;
     color: #E2E2E2;
 }
@@ -227,7 +244,7 @@ QScrollBar::sub-line {
 }
 """,
 THEME_MODERN: """
-QDialog#aminateMobuWindow {
+QWidget#aminateMobuWindow {
     background-color: #303234;
     color: #E4E7E9;
 }
@@ -293,21 +310,26 @@ QPushButton#aminateMobuThemeToggle:pressed {
 }
 QPushButton,
 QToolButton {
-    background-color: #494D52;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #545960, stop:1 #464A4F);
     color: #EEF1F3;
-    border: 1px solid #686F76;
+    border: 1px solid #747C84;
     border-radius: 9px;
     padding: 6px 10px;
 }
 QPushButton:hover,
 QToolButton:hover {
-    background-color: #53585E;
-    border-color: #78838C;
+    background-color: #5A6067;
+    border-color: #89949D;
 }
 QPushButton:pressed,
 QToolButton:pressed {
-    background-color: #5D636A;
-    border-color: #8BA0AE;
+    background-color: #676D75;
+    border-color: #9BAFBC;
+}
+QPushButton:checked,
+QToolButton:checked {
+    background-color: #606971;
+    border-color: #9EB2BF;
 }
 QPushButton:disabled,
 QToolButton:disabled {
@@ -354,6 +376,34 @@ QGroupBox::title {
     left: 12px;
     padding: 0px 5px;
     color: #E7EAEC;
+}
+QTabWidget::pane {
+    border: 1px solid #545C63;
+    border-radius: 11px;
+    top: -1px;
+    background-color: #323538;
+}
+QTabBar::tab {
+    background-color: #3C4044;
+    color: #DCE1E5;
+    border: 1px solid #5E666E;
+    border-bottom: 0px;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    padding: 7px 12px;
+    margin-right: 2px;
+}
+QTabBar::tab:hover {
+    background-color: #495057;
+    color: #EEF2F4;
+}
+QTabBar::tab:selected {
+    background-color: #5A626A;
+    color: #F5F7F8;
+    border-color: #8796A1;
+}
+QTabBar::tab:!selected {
+    margin-top: 3px;
 }
 QScrollBar:vertical,
 QScrollBar:horizontal {
@@ -437,7 +487,7 @@ QPlainTextEdit,
 QTextEdit {
     background-color: #4A4E53;
     color: #E7EAEC;
-    border: 1px solid #686F76;
+    border: 1px solid #707882;
     border-radius: 6px;
     padding: 4px 8px;
 }
@@ -445,13 +495,19 @@ QPushButton:hover,
 QToolButton:hover,
 QComboBox:hover,
 QAbstractSpinBox:hover {
-    background-color: #54595F;
-    border-color: #7A858E;
+    background-color: #5C636A;
+    border-color: #8C98A2;
 }
 QPushButton:pressed,
 QToolButton:pressed {
-    background-color: #5E646B;
-    border-color: #8BA0AE;
+    background-color: #6A727A;
+    border-color: #A0B4C1;
+}
+QPushButton:checked,
+QToolButton:checked,
+QToolButton:selected {
+    background-color: #667079;
+    border-color: #A3B7C4;
 }
 QLineEdit:focus,
 QPlainTextEdit:focus,
@@ -460,16 +516,39 @@ QComboBox:focus,
 QAbstractSpinBox:focus {
     border: 1px solid #6D8293;
 }
-QHeaderView::section,
-QTabBar::tab {
+QHeaderView::section {
     background-color: #484B4F;
     color: #E3E7E9;
     border: 1px solid #61686E;
     padding: 4px 10px;
 }
+QTabWidget::pane {
+    border: 1px solid #667079;
+    top: -1px;
+    background-color: #404346;
+}
+QTabBar::tab {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #50555A, stop:1 #464A4F);
+    color: #E7EAEC;
+    border: 1px solid #6E767E;
+    border-bottom: 0px;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    padding: 5px 11px;
+    margin-right: 2px;
+}
+QTabBar::tab:hover {
+    background-color: #5A6066;
+    color: #F4F6F7;
+    border-color: #8A959F;
+}
 QTabBar::tab:selected {
-    background-color: #55595D;
-    border-bottom-color: #55595D;
+    background-color: #667079;
+    color: #F7F8F9;
+    border-color: #A3B4C0;
+}
+QTabBar::tab:!selected {
+    margin-top: 3px;
 }
 QTreeView,
 QListView,
@@ -624,6 +703,9 @@ CHARACTER_SLOT_CANDIDATES = OrderedDict(
 
 _TOOL = None
 _QT_TOOL = None
+_QT_DOCK = None
+_QT_LAUNCHER_TOOLBAR = None
+_QT_LAUNCHER_ACTION = None
 _TOAST = None
 _TOAST_QUEUE = []
 _TOAST_ACTIVE = False
@@ -635,6 +717,8 @@ _PROP_MARKER_BASE_NAME = DEFAULT_PROP_MARKER_BASE_NAME
 _ACTIVE_THEME = DEFAULT_THEME_KEY
 _APP_THEME_BASELINE = None
 _APP_THEME_OWNED = False
+_APP_THEME_BASELINE_PALETTE = None
+_APP_THEME_BASELINE_STYLE = None
 
 
 def _now():
@@ -713,28 +797,76 @@ def _qt_main_window():
     return widgets[0] if widgets else None
 
 
-def _existing_aminate_mobu_windows():
+def _qt_host_main_window():
     if QtWidgets is None:
-        return []
+        return None
     app = QtWidgets.QApplication.instance()
     if app is None:
-        return []
-    windows = []
+        return None
     for widget in app.topLevelWidgets():
         try:
-            if widget.objectName() == QT_WINDOW_OBJECT_NAME:
-                windows.append(widget)
+            if hasattr(widget, "addDockWidget") and "MotionBuilder" in (widget.windowTitle() or ""):
+                return widget
         except Exception:
             continue
-    return windows
+    active = app.activeWindow()
+    if active is not None and hasattr(active, "addDockWidget"):
+        return active
+    return None
 
 
-def _close_duplicate_aminate_mobu_windows(keep_window=None):
-    for widget in _existing_aminate_mobu_windows():
-        if keep_window is not None and widget is keep_window:
+def _existing_aminate_mobu_docks():
+    if QtWidgets is None:
+        return []
+    main = _qt_host_main_window()
+    if main is None:
+        return []
+    docks = []
+    for widget in main.findChildren(QtWidgets.QDockWidget):
+        try:
+            if widget.objectName() == QT_DOCK_OBJECT_NAME:
+                docks.append(widget)
+        except Exception:
+            continue
+    return docks
+
+
+def _close_duplicate_aminate_mobu_docks(keep_dock=None):
+    for widget in _existing_aminate_mobu_docks():
+        if keep_dock is not None and widget is keep_dock:
             continue
         try:
             widget.close()
+        except Exception:
+            pass
+        try:
+            widget.deleteLater()
+        except Exception:
+            pass
+
+
+def _existing_aminate_launcher_toolbars():
+    if QtWidgets is None:
+        return []
+    main = _qt_host_main_window()
+    if main is None:
+        return []
+    toolbars = []
+    for widget in main.findChildren(QtWidgets.QToolBar):
+        try:
+            if widget.objectName() == QT_LAUNCHER_TOOLBAR_OBJECT_NAME:
+                toolbars.append(widget)
+        except Exception:
+            continue
+    return toolbars
+
+
+def _close_duplicate_aminate_launcher_toolbars(keep_toolbar=None):
+    for widget in _existing_aminate_launcher_toolbars():
+        if keep_toolbar is not None and widget is keep_toolbar:
+            continue
+        try:
+            widget.hide()
         except Exception:
             pass
         try:
@@ -747,6 +879,90 @@ def _qt_application():
     if QtWidgets is None:
         return None
     return QtWidgets.QApplication.instance()
+
+
+def _copy_palette(palette):
+    if QtGui is None or palette is None:
+        return None
+    try:
+        return QtGui.QPalette(palette)
+    except Exception:
+        return None
+
+
+def _make_modern_dark_palette():
+    if QtGui is None:
+        return None
+    palette = QtGui.QPalette()
+    colors = {
+        QtGui.QPalette.Window: QtGui.QColor("#454545"),
+        QtGui.QPalette.WindowText: QtGui.QColor("#E4E7EA"),
+        QtGui.QPalette.Base: QtGui.QColor("#2B2E31"),
+        QtGui.QPalette.AlternateBase: QtGui.QColor("#383C40"),
+        QtGui.QPalette.ToolTipBase: QtGui.QColor("#383C40"),
+        QtGui.QPalette.ToolTipText: QtGui.QColor("#EEF1F3"),
+        QtGui.QPalette.Text: QtGui.QColor("#E4E7E9"),
+        QtGui.QPalette.Button: QtGui.QColor("#494D52"),
+        QtGui.QPalette.ButtonText: QtGui.QColor("#EEF1F3"),
+        QtGui.QPalette.BrightText: QtGui.QColor("#FFFFFF"),
+        QtGui.QPalette.Highlight: QtGui.QColor("#6D8293"),
+        QtGui.QPalette.HighlightedText: QtGui.QColor("#F0F2F4"),
+        QtGui.QPalette.Light: QtGui.QColor("#5A5F64"),
+        QtGui.QPalette.Midlight: QtGui.QColor("#52575C"),
+        QtGui.QPalette.Mid: QtGui.QColor("#4A4F54"),
+        QtGui.QPalette.Dark: QtGui.QColor("#26282A"),
+        QtGui.QPalette.Shadow: QtGui.QColor("#1B1D1F"),
+        QtGui.QPalette.Link: QtGui.QColor("#8BA0AE"),
+        QtGui.QPalette.LinkVisited: QtGui.QColor("#A4B3BE"),
+        QtGui.QPalette.PlaceholderText: QtGui.QColor("#8F979F"),
+    }
+    for role, color in colors.items():
+        try:
+            palette.setColor(role, color)
+        except Exception:
+            pass
+    try:
+        disabled_text = QtGui.QColor("#737B82")
+        disabled_bg = QtGui.QColor("#252729")
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText, disabled_text)
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, disabled_text)
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.WindowText, disabled_text)
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Button, disabled_bg)
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base, disabled_bg)
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Window, QtGui.QColor("#303234"))
+    except Exception:
+        pass
+    return palette
+
+
+def _refresh_qt_theme():
+    app = _qt_application()
+    if app is None:
+        return False
+    try:
+        app.processEvents()
+    except Exception:
+        pass
+    widgets = []
+    try:
+        widgets = list(app.topLevelWidgets())
+    except Exception:
+        widgets = []
+    for widget in widgets:
+        try:
+            style = widget.style()
+            if style is not None:
+                style.unpolish(widget)
+                style.polish(widget)
+            widget.update()
+            widget.repaint()
+        except Exception:
+            continue
+    try:
+        app.processEvents()
+    except Exception:
+        pass
+    return True
 
 
 def _normalize_theme_key(theme_key):
@@ -792,29 +1008,69 @@ def _app_theme_stylesheet(theme_key):
 
 
 def _restore_app_theme():
-    global _APP_THEME_BASELINE, _APP_THEME_OWNED
+    global _APP_THEME_BASELINE, _APP_THEME_OWNED, _APP_THEME_BASELINE_PALETTE, _APP_THEME_BASELINE_STYLE
     app = _qt_application()
     if app is None or not _APP_THEME_OWNED:
         return False
+    try:
+        if _APP_THEME_BASELINE_STYLE:
+            app.setStyle(_APP_THEME_BASELINE_STYLE)
+    except Exception:
+        pass
+    try:
+        if _APP_THEME_BASELINE_PALETTE is not None:
+            app.setPalette(_APP_THEME_BASELINE_PALETTE)
+    except Exception:
+        pass
     app.setStyleSheet(_APP_THEME_BASELINE or "")
     _APP_THEME_OWNED = False
+    _refresh_qt_theme()
     return True
 
 
 def _apply_app_theme(theme_key):
-    global _APP_THEME_BASELINE, _APP_THEME_OWNED
+    global _APP_THEME_BASELINE, _APP_THEME_OWNED, _APP_THEME_BASELINE_PALETTE, _APP_THEME_BASELINE_STYLE
     app = _qt_application()
     if app is None:
         return False
     theme_key = _normalize_theme_key(theme_key)
     if _APP_THEME_BASELINE is None:
         _APP_THEME_BASELINE = app.styleSheet()
+    if _APP_THEME_BASELINE_PALETTE is None:
+        _APP_THEME_BASELINE_PALETTE = _copy_palette(app.palette())
+    if _APP_THEME_BASELINE_STYLE is None:
+        try:
+            _APP_THEME_BASELINE_STYLE = app.style().objectName()
+        except Exception:
+            _APP_THEME_BASELINE_STYLE = None
     if theme_key == THEME_MOTIONBUILDER:
+        try:
+            if _APP_THEME_BASELINE_STYLE:
+                app.setStyle(_APP_THEME_BASELINE_STYLE)
+        except Exception:
+            pass
+        try:
+            if _APP_THEME_BASELINE_PALETTE is not None:
+                app.setPalette(_APP_THEME_BASELINE_PALETTE)
+        except Exception:
+            pass
         app.setStyleSheet(_APP_THEME_BASELINE or "")
         _APP_THEME_OWNED = False
+        _refresh_qt_theme()
         return True
+    try:
+        app.setStyle("Fusion")
+    except Exception:
+        pass
+    palette = _make_modern_dark_palette()
+    if palette is not None:
+        try:
+            app.setPalette(palette)
+        except Exception:
+            pass
     app.setStyleSheet(_app_theme_stylesheet(theme_key))
     _APP_THEME_OWNED = True
+    _refresh_qt_theme()
     return True
 
 
@@ -863,6 +1119,125 @@ def _style_donate_button(button, theme_key=None):
     )
 
 
+def _on_qt_panel_destroyed(*_args):
+    global _QT_TOOL
+    global _QT_DOCK
+    _QT_TOOL = None
+    _QT_DOCK = None
+    _restore_app_theme()
+
+
+def _ensure_aminate_launcher_toolbar():
+    global _QT_LAUNCHER_TOOLBAR
+    global _QT_LAUNCHER_ACTION
+    if QtWidgets is None or QtCore is None:
+        return None
+    main = _qt_host_main_window()
+    if main is None or not hasattr(main, "addToolBar"):
+        return None
+    if _QT_LAUNCHER_TOOLBAR is None:
+        existing = _existing_aminate_launcher_toolbars()
+        if existing:
+            _QT_LAUNCHER_TOOLBAR = existing[-1]
+            _close_duplicate_aminate_launcher_toolbars(keep_toolbar=_QT_LAUNCHER_TOOLBAR)
+    if _QT_LAUNCHER_TOOLBAR is None:
+        toolbar = QtWidgets.QToolBar("Aminate")
+        toolbar.setObjectName(QT_LAUNCHER_TOOLBAR_OBJECT_NAME)
+        toolbar.setMovable(True)
+        toolbar.setFloatable(False)
+        toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
+        action = toolbar.addAction("Aminate")
+        try:
+            action.triggered.connect(lambda _checked=False: launch_aminate_mobu())
+        except Exception:
+            pass
+        widget = toolbar.widgetForAction(action)
+        if widget is not None:
+            widget.setObjectName(QT_LAUNCHER_BUTTON_OBJECT_NAME)
+            widget.setToolTip("Open the dockable Aminate Mobu tools.")
+        main.addToolBar(QtCore.Qt.TopToolBarArea, toolbar)
+        _QT_LAUNCHER_TOOLBAR = toolbar
+        _QT_LAUNCHER_ACTION = action
+    else:
+        action_list = list(_QT_LAUNCHER_TOOLBAR.actions())
+        _QT_LAUNCHER_ACTION = action_list[0] if action_list else _QT_LAUNCHER_TOOLBAR.addAction("Aminate")
+        widget = _QT_LAUNCHER_TOOLBAR.widgetForAction(_QT_LAUNCHER_ACTION)
+        if widget is not None:
+            widget.setObjectName(QT_LAUNCHER_BUTTON_OBJECT_NAME)
+            widget.setToolTip("Open the dockable Aminate Mobu tools.")
+    _close_duplicate_aminate_launcher_toolbars(keep_toolbar=_QT_LAUNCHER_TOOLBAR)
+    try:
+        _QT_LAUNCHER_TOOLBAR.show()
+    except Exception:
+        pass
+    return _QT_LAUNCHER_TOOLBAR
+
+
+def ensure_motionbuilder_ui_entry():
+    return _ensure_aminate_launcher_toolbar()
+
+
+def discover_motionbuilder_startup_dirs(root_dir=None):
+    root_dir = root_dir or MB_DOCUMENTS_ROOT
+    if not os.path.isdir(root_dir):
+        return []
+    startup_dirs = []
+    for entry in sorted(os.listdir(root_dir), reverse=True):
+        version_root = os.path.join(root_dir, entry)
+        if not os.path.isdir(version_root):
+            continue
+        if not entry.isdigit():
+            continue
+        startup_dir = os.path.join(version_root, "config", "PythonStartup")
+        startup_dirs.append(startup_dir)
+    return startup_dirs
+
+
+def startup_bootstrap_path(startup_dir=None):
+    if startup_dir:
+        return os.path.join(startup_dir, STARTUP_BOOTSTRAP_FILENAME)
+    startup_dirs = discover_motionbuilder_startup_dirs()
+    target_dir = startup_dirs[0] if startup_dirs else os.path.join(MB_DOCUMENTS_ROOT, "2026", "config", "PythonStartup")
+    return os.path.join(target_dir, STARTUP_BOOTSTRAP_FILENAME)
+
+
+def install_motionbuilder_startup(startup_dir=None, module_root=None):
+    module_root = module_root or os.path.dirname(os.path.abspath(__file__))
+    target_dirs = [startup_dir] if startup_dir else discover_motionbuilder_startup_dirs()
+    if not target_dirs:
+        target_dirs = [os.path.join(MB_DOCUMENTS_ROOT, "2026", "config", "PythonStartup")]
+    bootstrap = """from __future__ import absolute_import, division, print_function
+import importlib
+import sys
+MODULE_ROOT = r\"{module_root}\"
+if MODULE_ROOT not in sys.path:
+    sys.path.insert(0, MODULE_ROOT)
+def _boot():
+    import aminate_mobu
+    importlib.reload(aminate_mobu)
+    aminate_mobu.ensure_motionbuilder_ui_entry()
+try:
+    from PySide6 import QtCore
+except Exception:
+    try:
+        from PySide2 import QtCore
+    except Exception:
+        QtCore = None
+if QtCore is not None:
+    QtCore.QTimer.singleShot(250, _boot)
+else:
+    _boot()
+""".format(module_root=module_root.replace("\\", "\\\\"))
+    installed_paths = []
+    for target_dir in target_dirs:
+        os.makedirs(target_dir, exist_ok=True)
+        bootstrap_path = startup_bootstrap_path(target_dir)
+        with open(bootstrap_path, "w", encoding="utf-8") as handle:
+            handle.write(bootstrap)
+        installed_paths.append(bootstrap_path)
+    return installed_paths
+
+
 def _open_external_url(url):
     if not url:
         return False
@@ -909,7 +1284,7 @@ class _ToastWidget(QtWidgets.QFrame if QtWidgets else object):
         self._hide_timer.start(int(duration_ms))
 
     def _position(self):
-        anchor = _qt_main_window()
+        anchor = _qt_host_main_window() or _qt_main_window()
         if anchor is None:
             return
         geo = anchor.frameGeometry()
@@ -991,6 +1366,9 @@ def _queue_warning(kind, message, duration_ms=DEFAULT_TOAST_DURATION_MS, throttl
 
 def reset_runtime_state(clear_tool=False):
     global _QT_TOOL
+    global _QT_DOCK
+    global _QT_LAUNCHER_TOOLBAR
+    global _QT_LAUNCHER_ACTION
     global _TOAST_QUEUE, _TOAST_ACTIVE, _WARNING_LAST_SHOWN, _WARNING_HISTORY, _STATUS_LINES
     _TOAST_QUEUE = []
     _TOAST_ACTIVE = False
@@ -1000,7 +1378,18 @@ def reset_runtime_state(clear_tool=False):
     remove_runtime_watchers()
     if clear_tool:
         _restore_app_theme()
-        _close_duplicate_aminate_mobu_windows()
+        _close_duplicate_aminate_mobu_docks()
+        _close_duplicate_aminate_launcher_toolbars(keep_toolbar=_QT_LAUNCHER_TOOLBAR)
+    if clear_tool and _QT_DOCK is not None:
+        try:
+            _QT_DOCK.close()
+        except Exception:
+            pass
+        try:
+            _QT_DOCK.deleteLater()
+        except Exception:
+            pass
+        _QT_DOCK = None
     if clear_tool and _QT_TOOL is not None:
         try:
             _QT_TOOL.close()
@@ -1011,6 +1400,17 @@ def reset_runtime_state(clear_tool=False):
         except Exception:
             pass
         _QT_TOOL = None
+    if clear_tool and _QT_LAUNCHER_TOOLBAR is not None:
+        try:
+            _QT_LAUNCHER_TOOLBAR.hide()
+        except Exception:
+            pass
+        try:
+            _QT_LAUNCHER_TOOLBAR.deleteLater()
+        except Exception:
+            pass
+        _QT_LAUNCHER_TOOLBAR = None
+        _QT_LAUNCHER_ACTION = None
     if clear_tool and TOOL_NAME in pyfbsdk_additions.FBToolList:
         pyfbsdk_additions.FBDestroyToolByName(TOOL_NAME)
 
@@ -1667,21 +2067,19 @@ def _on_history_timeline(control=None, event=None):
 
 
 if QtWidgets:
-    class AminateMobuWindow(QtWidgets.QDialog):
+    class AminateMobuPanel(QtWidgets.QWidget):
         def __init__(self, parent=None):
-            super(AminateMobuWindow, self).__init__(parent or _qt_main_window())
+            super(AminateMobuPanel, self).__init__(parent)
             self.theme_key = get_active_theme()
             self.setObjectName(QT_WINDOW_OBJECT_NAME)
-            self.setWindowTitle(TOOL_NAME)
-            self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-            try:
-                self.setWindowFlag(QtCore.Qt.Tool, True)
-            except Exception:
-                pass
             self.setMinimumSize(860, 560)
             self.resize(920, 640)
             self._build_ui()
             self._apply_theme(self.theme_key)
+            try:
+                self.destroyed.connect(_on_qt_panel_destroyed)
+            except Exception:
+                pass
 
         def _build_ui(self):
             main_layout = QtWidgets.QVBoxLayout(self)
@@ -1799,7 +2197,6 @@ if QtWidgets:
 
         def _apply_theme(self, theme_key=None):
             self.theme_key = set_active_theme(theme_key or self.theme_key)
-            _apply_app_theme(self.theme_key)
             self.setStyleSheet(_theme_stylesheet(self.theme_key))
             if getattr(self, "theme_badge", None) is not None:
                 self.theme_badge.setText("Theme  {0}".format(_theme_label(self.theme_key)))
@@ -1807,6 +2204,7 @@ if QtWidgets:
                 self.theme_button.setText(_theme_toggle_caption(self.theme_key))
                 self.theme_button.setToolTip(_theme_tooltip(self.theme_key))
             _style_donate_button(getattr(self, "donate_button", None), self.theme_key)
+            _apply_app_theme(self.theme_key)
 
         def _toggle_theme(self):
             self._apply_theme(_other_theme(self.theme_key))
@@ -1838,11 +2236,29 @@ if QtWidgets:
                 _append_status("Could not open the Donate link from this MotionBuilder session.")
                 _refresh_dashboard()
 
+    class AminateMobuDockWidget(QtWidgets.QDockWidget):
+        def __init__(self, parent=None):
+            super(AminateMobuDockWidget, self).__init__(TOOL_NAME, parent or _qt_host_main_window())
+            self.setObjectName(QT_DOCK_OBJECT_NAME)
+            self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+            self.setAllowedAreas(QtCore.Qt.AllDockWidgetAreas)
+            self.setFeatures(
+                QtWidgets.QDockWidget.DockWidgetClosable
+                | QtWidgets.QDockWidget.DockWidgetMovable
+                | QtWidgets.QDockWidget.DockWidgetFloatable
+            )
+            self.panel = AminateMobuPanel(self)
+            self.status_memo = self.panel.status_memo
+            self.status_label = self.panel.status_label
+            self.setWidget(self.panel)
+
         def closeEvent(self, event):
+            global _QT_DOCK
             global _QT_TOOL
-            _restore_app_theme()
+            _QT_DOCK = None
             _QT_TOOL = None
-            super(AminateMobuWindow, self).closeEvent(event)
+            _restore_app_theme()
+            super(AminateMobuDockWidget, self).closeEvent(event)
 
 
 def _populate_tool_layout(tool):
@@ -1892,43 +2308,56 @@ def _populate_tool_layout(tool):
 
 def launch_aminate_mobu():
     global _QT_TOOL
+    global _QT_DOCK
     global _TOOL
     install_runtime_watchers()
-    if QtWidgets is not None:
-        if TOOL_NAME in pyfbsdk_additions.FBToolList:
+    _ensure_aminate_launcher_toolbar()
+    if QtWidgets is not None and hasattr(_qt_host_main_window(), "addDockWidget"):
+        if _QT_DOCK is None:
+            existing_docks = _existing_aminate_mobu_docks()
+            if existing_docks:
+                _QT_DOCK = existing_docks[-1]
+                _close_duplicate_aminate_mobu_docks(keep_dock=_QT_DOCK)
+                _QT_TOOL = getattr(_QT_DOCK, "panel", None)
+        if _QT_DOCK is None:
+            main = _qt_host_main_window()
+            _QT_DOCK = AminateMobuDockWidget(parent=main)
+            _QT_TOOL = _QT_DOCK.panel
             try:
-                pyfbsdk_additions.FBDestroyToolByName(TOOL_NAME)
+                main.addDockWidget(QtCore.Qt.RightDockWidgetArea, _QT_DOCK)
             except Exception:
                 pass
-        if _QT_TOOL is None:
-            existing_windows = _existing_aminate_mobu_windows()
-            if existing_windows:
-                _QT_TOOL = existing_windows[-1]
-                _close_duplicate_aminate_mobu_windows(keep_window=_QT_TOOL)
-        if _QT_TOOL is not None:
-            try:
-                _QT_TOOL.show()
-                _QT_TOOL.raise_()
-                _QT_TOOL.activateWindow()
-                _refresh_dashboard()
-                return _QT_TOOL
-            except Exception:
-                _QT_TOOL = None
-        _QT_TOOL = AminateMobuWindow(parent=_qt_main_window())
-        _close_duplicate_aminate_mobu_windows(keep_window=_QT_TOOL)
-        _QT_TOOL.show()
-        _QT_TOOL.raise_()
+            _close_duplicate_aminate_mobu_docks(keep_dock=_QT_DOCK)
+        try:
+            _QT_DOCK.show()
+            _QT_DOCK.raise_()
+        except Exception:
+            pass
         _set_status_lines(_tool_intro_lines())
         _refresh_dashboard()
-        return _QT_TOOL
+        return _QT_DOCK
     if TOOL_NAME in pyfbsdk_additions.FBToolList:
         _TOOL = pyfbsdk_additions.FBToolList[TOOL_NAME]
+        try:
+            _TOOL.SetPossibleDockPosition(FBToolPossibleDockPosition.kFBToolPossibleDockPosLeft)
+            _TOOL.SetPossibleDockPosition(FBToolPossibleDockPosition.kFBToolPossibleDockPosRight)
+            _TOOL.SetPossibleDockPosition(FBToolPossibleDockPosition.kFBToolPossibleDockPosTop)
+            _TOOL.SetPossibleDockPosition(FBToolPossibleDockPosition.kFBToolPossibleDockPosBottom)
+        except Exception:
+            pass
         ShowTool(_TOOL)
         _refresh_dashboard()
         return _TOOL
     tool = pyfbsdk_additions.FBCreateUniqueTool(TOOL_NAME)
     tool.StartSizeX = 760
     tool.StartSizeY = 420
+    try:
+        tool.SetPossibleDockPosition(FBToolPossibleDockPosition.kFBToolPossibleDockPosLeft)
+        tool.SetPossibleDockPosition(FBToolPossibleDockPosition.kFBToolPossibleDockPosRight)
+        tool.SetPossibleDockPosition(FBToolPossibleDockPosition.kFBToolPossibleDockPosTop)
+        tool.SetPossibleDockPosition(FBToolPossibleDockPosition.kFBToolPossibleDockPosBottom)
+    except Exception:
+        pass
     _populate_tool_layout(tool)
     ShowTool(tool)
     _TOOL = tool
@@ -1949,6 +2378,7 @@ __all__ = [
     "get_prop_marker_base_name",
     "get_warning_history",
     "handle_transform_attempt",
+    "install_motionbuilder_startup",
     "install_runtime_watchers",
     "launch_aminate_mobu",
     "maybe_warn_control_rig_mode",
@@ -1959,5 +2389,7 @@ __all__ = [
     "set_prop_marker_base_name",
     "set_keying_mode_body_part",
     "set_keying_mode_full_body",
+    "startup_bootstrap_path",
+    "ensure_motionbuilder_ui_entry",
     "validate_current_character",
 ]

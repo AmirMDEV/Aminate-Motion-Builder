@@ -66,13 +66,10 @@ QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
-DEFAULT_MOBU_PYTHONSTARTUP_DIR = os.path.join(
+MB_DOCUMENTS_ROOT = os.path.join(
     os.path.expanduser("~"),
     "Documents",
     "MB",
-    "2026",
-    "config",
-    "PythonStartup",
 )
 FOLLOW_AMIR_URL = "https://followamir.com"
 DEFAULT_DONATE_URL = "https://www.paypal.com/donate/?hosted_button_id=2U2GXSKFJKJCA"
@@ -1180,16 +1177,35 @@ def ensure_motionbuilder_ui_entry():
     return _ensure_aminate_launcher_toolbar()
 
 
+def discover_motionbuilder_startup_dirs(root_dir=None):
+    root_dir = root_dir or MB_DOCUMENTS_ROOT
+    if not os.path.isdir(root_dir):
+        return []
+    startup_dirs = []
+    for entry in sorted(os.listdir(root_dir), reverse=True):
+        version_root = os.path.join(root_dir, entry)
+        if not os.path.isdir(version_root):
+            continue
+        if not entry.isdigit():
+            continue
+        startup_dir = os.path.join(version_root, "config", "PythonStartup")
+        startup_dirs.append(startup_dir)
+    return startup_dirs
+
+
 def startup_bootstrap_path(startup_dir=None):
-    target_dir = startup_dir or DEFAULT_MOBU_PYTHONSTARTUP_DIR
+    if startup_dir:
+        return os.path.join(startup_dir, STARTUP_BOOTSTRAP_FILENAME)
+    startup_dirs = discover_motionbuilder_startup_dirs()
+    target_dir = startup_dirs[0] if startup_dirs else os.path.join(MB_DOCUMENTS_ROOT, "2026", "config", "PythonStartup")
     return os.path.join(target_dir, STARTUP_BOOTSTRAP_FILENAME)
 
 
 def install_motionbuilder_startup(startup_dir=None, module_root=None):
-    target_dir = startup_dir or DEFAULT_MOBU_PYTHONSTARTUP_DIR
     module_root = module_root or os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(target_dir, exist_ok=True)
-    bootstrap_path = startup_bootstrap_path(target_dir)
+    target_dirs = [startup_dir] if startup_dir else discover_motionbuilder_startup_dirs()
+    if not target_dirs:
+        target_dirs = [os.path.join(MB_DOCUMENTS_ROOT, "2026", "config", "PythonStartup")]
     bootstrap = """from __future__ import absolute_import, division, print_function
 import importlib
 import sys
@@ -1212,9 +1228,14 @@ if QtCore is not None:
 else:
     _boot()
 """.format(module_root=module_root.replace("\\", "\\\\"))
-    with open(bootstrap_path, "w", encoding="utf-8") as handle:
-        handle.write(bootstrap)
-    return bootstrap_path
+    installed_paths = []
+    for target_dir in target_dirs:
+        os.makedirs(target_dir, exist_ok=True)
+        bootstrap_path = startup_bootstrap_path(target_dir)
+        with open(bootstrap_path, "w", encoding="utf-8") as handle:
+            handle.write(bootstrap)
+        installed_paths.append(bootstrap_path)
+    return installed_paths
 
 
 def _open_external_url(url):
