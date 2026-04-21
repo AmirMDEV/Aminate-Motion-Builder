@@ -14,3 +14,4 @@
 - Refined modern theme iconography for toolbar chrome, dropdown lanes, separators, and control chips
 - Tightened modern theme typography and spacing across the Aminate dock header, cards, button grids, notes, and status areas
 - Added an imagegen-based Aminate launcher icon asset and wired the MotionBuilder toolbar button to use text plus icon with package-safe asset copying
+- Added the exact full-size transparent Aminate logo PNG at repo root, generated a matching SVG wrapper version, and regenerated toolbar icon sizes from that source
