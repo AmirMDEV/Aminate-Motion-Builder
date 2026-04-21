@@ -16,3 +16,4 @@
 - Added an imagegen-based Aminate launcher icon asset and wired the MotionBuilder toolbar button to use text plus icon with package-safe asset copying
 - Added the exact full-size transparent Aminate logo PNG at repo root, generated a matching SVG wrapper version, and regenerated toolbar icon sizes from that source
 - Added a host-wide easy tooltip pass for Qt-visible MotionBuilder menus, tabs, buttons, panels, and all Aminate controls, and restored the live Aminate launcher plus dock in MotionBuilder
+- Corrected theme behavior so `MotionBuilder` restores true native host styling and `Modern` owns the custom Aminate and host chrome restyle
