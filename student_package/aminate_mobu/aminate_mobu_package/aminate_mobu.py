@@ -100,6 +100,52 @@ DEFAULT_TOAST_DURATION_MS = 4000
 DEFAULT_PROP_MARKER_BASE_NAME = "Prop"
 UNLABELLED_MARKER_PATTERN = re.compile(r"^(marker|tmpmarker|unnamedmarker)(?:\s+\d+)?$", re.IGNORECASE)
 CONTROL_RIG_PROPERTY_NAMES = {"Lcl Translation", "Lcl Rotation"}
+EASY_TOOLTIP_TEXT = {
+    "Aminate": "Open Aminate Mobu tools.",
+    "File": "Open files, save work, import, export, and close the scene.",
+    "Edit": "Undo, redo, copy, paste, and other basic scene edits.",
+    "Animation": "Work with keys, takes, layers, plotting, and animation tools.",
+    "Settings": "Change MotionBuilder preferences and scene options.",
+    "Layout": "Show, hide, and reset panel layouts.",
+    "Open Reality": "Open live device, camera, and realtime connection tools.",
+    "Python Tools": "Open MotionBuilder scripting and Python helper tools.",
+    "Window": "Show, hide, and arrange MotionBuilder windows.",
+    "Help": "Open help, docs, and version information.",
+    "Viewer": "This is the main 3D view where you look at and work in the scene.",
+    "View": "Choose which camera or view the Viewer uses.",
+    "Display": "Choose what the Viewer draws, like grids, helpers, and models.",
+    "Renderer": "Choose how the Viewer draws the scene.",
+    "Transport Controls": "Play, stop, scrub, and move through time.",
+    "Story": "Build clip based timing and non linear animation.",
+    "Action": "Work with action clips and their timing.",
+    "Navigator": "Browse everything in the scene.",
+    "Dopesheet": "See and move keys in a simple timeline view.",
+    "FCurves": "Edit animation curves and smooth motion.",
+    "Key Controls": "Change how keys are created, moved, flattened, and synced.",
+    "Resources": "Browse assets, scripts, templates, and scene resources.",
+    "Character Controls": "Create, define, characterize, and drive characters.",
+    "Create": "Make a new actor or control rig.",
+    "Actor": "Create an actor setup for device or optical data.",
+    "Control Rig": "Build an animatable rig with controls.",
+    "Define": "Connect skeleton parts to a character definition.",
+    "Skeleton": "Map skeleton bones into the character system.",
+    "Actions": "Main Aminate tools for cleaning, mapping, and setup checks.",
+    "Notes": "Simple rules and reminders for how Aminate behaves.",
+    "What This Tool Helps With": "Quick summary of what Aminate Mobu can do for this scene.",
+    "Prop Marker Base Name": "Type the base name Aminate should use when renaming animated prop markers.",
+    "Refresh": "Re-read the current scene and refresh Aminate status.",
+    "Scene Cleaner": "Delete user cameras, remove junk default markers, and keep animated prop markers.",
+    "Delete Cameras": "Delete user made cameras from the scene.",
+    "Delete Markers": "Delete junk default markers and keep animated prop markers.",
+    "Auto Map Skeleton": "Try to map the current skeleton into HumanIK from hips to fingers and feet.",
+    "Validate Character": "Check whether the character setup is ready and warn about missing steps.",
+    "Body Part Mode": "Switch the control rig into body part editing mode.",
+    "Full Body Mode": "Switch the control rig into full body editing mode.",
+    "History Timeline": "Open the History Timeline tool for full scene snapshot branches.",
+    "Donate": "Open Amir's PayPal donation page.",
+    "Theme": "Shows which Aminate theme is active right now.",
+    "Ready.": "This line shows the latest Aminate status message.",
+}
 AMINATE_MOBU_LOCAL_STYLESHEETS = {
 THEME_MOTIONBUILDER: """
 QWidget#aminateMobuWindow {
@@ -805,6 +851,7 @@ _QT_TOOL = None
 _QT_DOCK = None
 _QT_LAUNCHER_TOOLBAR = None
 _QT_LAUNCHER_ACTION = None
+_QT_TOOLTIP_FILTER = None
 _TOAST = None
 _TOAST_QUEUE = []
 _TOAST_ACTIVE = False
@@ -978,6 +1025,190 @@ def _qt_application():
     if QtWidgets is None:
         return None
     return QtWidgets.QApplication.instance()
+
+
+def _clean_tooltip_key(text):
+    if not text:
+        return ""
+    cleaned = re.sub(r"\s+", " ", str(text).replace("&", " ")).strip()
+    while cleaned.endswith(":"):
+        cleaned = cleaned[:-1].rstrip()
+    return cleaned
+
+
+def _easy_tooltip_text(text, class_name=""):
+    key = _clean_tooltip_key(text)
+    if not key:
+        return None
+    if key in EASY_TOOLTIP_TEXT:
+        return EASY_TOOLTIP_TEXT[key]
+    lower_key = key.lower()
+    if re.match(r"take\s+\d+", lower_key):
+        return "This is the active take, which stores one version of your animation."
+    if re.match(r"animlayer\d+", key):
+        return "This animation layer stores one stack of keys on top of the base animation."
+    if lower_key == "none":
+        return "Nothing is set here yet."
+    if "version" in lower_key and "beta" in lower_key:
+        return "This shows which Aminate Mobu build is loaded."
+    if class_name == "QPushButton":
+        return "Click to use {0}.".format(lower_key)
+    if class_name == "QToolButton":
+        return "Click to open or use {0}.".format(lower_key)
+    if class_name == "QAction":
+        return "Open {0} options.".format(lower_key)
+    if class_name == "QMenu":
+        return "Open the {0} menu.".format(lower_key)
+    if class_name == "QGroupBox":
+        return "This section is about {0}.".format(lower_key)
+    if class_name == "QTabBar":
+        return "Open the {0} tab.".format(lower_key)
+    if class_name == "QLabel":
+        return "This label shows {0}.".format(lower_key)
+    return None
+
+
+def _apply_easy_tooltip_to_action(action):
+    if action is None:
+        return False
+    text = None
+    try:
+        text = action.text()
+    except Exception:
+        text = None
+    tooltip = _easy_tooltip_text(text, "QAction")
+    if not tooltip:
+        return False
+    changed = False
+    try:
+        if not action.toolTip():
+            action.setToolTip(tooltip)
+            changed = True
+    except Exception:
+        pass
+    try:
+        if not action.statusTip():
+            action.setStatusTip(tooltip)
+            changed = True
+    except Exception:
+        pass
+    return changed
+
+
+def _extract_widget_text(widget):
+    for attr in ("text", "title", "windowTitle", "placeholderText"):
+        try:
+            value = getattr(widget, attr)()
+        except Exception:
+            value = None
+        if value:
+            return value
+    try:
+        value = widget.accessibleName()
+    except Exception:
+        value = None
+    return value or ""
+
+
+def _apply_easy_tooltip_to_widget(widget):
+    if widget is None or QtWidgets is None:
+        return False
+    class_name = widget.metaObject().className() if hasattr(widget, "metaObject") else widget.__class__.__name__
+    if isinstance(widget, QtWidgets.QTabBar):
+        changed = False
+        for index in range(widget.count()):
+            tooltip = _easy_tooltip_text(widget.tabText(index), "QTabBar")
+            if not tooltip:
+                continue
+            try:
+                if not widget.tabToolTip(index):
+                    widget.setTabToolTip(index, tooltip)
+                    changed = True
+            except Exception:
+                continue
+        return changed
+    tooltip = _easy_tooltip_text(_extract_widget_text(widget), class_name)
+    if not tooltip:
+        if isinstance(widget, QtWidgets.QLineEdit):
+            tooltip = "Type text here."
+        elif isinstance(widget, QtWidgets.QComboBox):
+            tooltip = "Choose one option from this list."
+        elif isinstance(widget, QtWidgets.QPlainTextEdit):
+            tooltip = "This area shows more detailed text output."
+    if not tooltip:
+        return False
+    changed = False
+    try:
+        if not widget.toolTip():
+            widget.setToolTip(tooltip)
+            changed = True
+    except Exception:
+        pass
+    try:
+        if hasattr(widget, "setStatusTip") and not widget.statusTip():
+            widget.setStatusTip(tooltip)
+            changed = True
+    except Exception:
+        pass
+    try:
+        for action in widget.actions():
+            _apply_easy_tooltip_to_action(action)
+    except Exception:
+        pass
+    return changed
+
+
+def refresh_easy_motionbuilder_tooltips():
+    if QtWidgets is None:
+        return 0
+    main = _qt_host_main_window()
+    if main is None:
+        return 0
+    touched = 0
+    touched += int(_apply_easy_tooltip_to_widget(main))
+    for widget in main.findChildren(QtWidgets.QWidget):
+        touched += int(_apply_easy_tooltip_to_widget(widget))
+    if QtGui is not None:
+        try:
+            for action in main.findChildren(QtGui.QAction):
+                touched += int(_apply_easy_tooltip_to_action(action))
+        except Exception:
+            pass
+    return touched
+
+
+if QtCore is not None and QtWidgets is not None:
+    class MotionBuilderEasyTooltipFilter(QtCore.QObject):
+        def eventFilter(self, watched, event):
+            try:
+                if watched is not None and event is not None:
+                    if event.type() in (
+                        QtCore.QEvent.Show,
+                        QtCore.QEvent.Enter,
+                        QtCore.QEvent.Polish,
+                        QtCore.QEvent.ToolTip,
+                    ):
+                        if QtGui is not None and isinstance(watched, QtGui.QAction):
+                            _apply_easy_tooltip_to_action(watched)
+                        elif isinstance(watched, QtWidgets.QWidget):
+                            _apply_easy_tooltip_to_widget(watched)
+            except Exception:
+                pass
+            return False
+
+
+def install_easy_motionbuilder_tooltips():
+    global _QT_TOOLTIP_FILTER
+    app = _qt_application()
+    if app is None or QtCore is None or QtWidgets is None:
+        return 0
+    if _QT_TOOLTIP_FILTER is None:
+        try:
+            _QT_TOOLTIP_FILTER = MotionBuilderEasyTooltipFilter(app)
+            app.installEventFilter(_QT_TOOLTIP_FILTER)
+        except Exception:
+            _QT_TOOLTIP_FILTER = None
+    return refresh_easy_motionbuilder_tooltips()
 
 
 def _copy_palette(palette):
@@ -1257,6 +1488,11 @@ def _ensure_aminate_launcher_toolbar():
             action.triggered.connect(lambda _checked=False: launch_aminate_mobu())
         except Exception:
             pass
+        try:
+            action.setToolTip("Open Aminate Mobu tools.")
+            action.setStatusTip("Open Aminate Mobu tools.")
+        except Exception:
+            pass
         icon_path = _launcher_icon_path()
         if icon_path and QtGui is not None:
             try:
@@ -1273,6 +1509,11 @@ def _ensure_aminate_launcher_toolbar():
     else:
         action_list = list(_QT_LAUNCHER_TOOLBAR.actions())
         _QT_LAUNCHER_ACTION = action_list[0] if action_list else _QT_LAUNCHER_TOOLBAR.addAction("Aminate")
+        try:
+            _QT_LAUNCHER_ACTION.setToolTip("Open Aminate Mobu tools.")
+            _QT_LAUNCHER_ACTION.setStatusTip("Open Aminate Mobu tools.")
+        except Exception:
+            pass
         icon_path = _launcher_icon_path()
         if icon_path and QtGui is not None:
             try:
@@ -1292,7 +1533,9 @@ def _ensure_aminate_launcher_toolbar():
 
 
 def ensure_motionbuilder_ui_entry():
-    return _ensure_aminate_launcher_toolbar()
+    toolbar = _ensure_aminate_launcher_toolbar()
+    install_easy_motionbuilder_tooltips()
+    return toolbar
 
 
 def discover_motionbuilder_startup_dirs(root_dir=None):
@@ -2209,13 +2452,16 @@ if QtWidgets:
             header_text_layout.setSpacing(0)
             self.header_title = QtWidgets.QLabel(TOOL_NAME)
             self.header_title.setObjectName("aminateMobuHeaderTitle")
+            self.header_title.setToolTip("Main Aminate Mobu panel title.")
             header_text_layout.addWidget(self.header_title)
             self.header_subtitle = QtWidgets.QLabel("Scene cleanup  HIK mapping  setup warnings")
             self.header_subtitle.setObjectName("aminateMobuHeaderSubtitle")
+            self.header_subtitle.setToolTip("Quick summary of the main Aminate Mobu jobs.")
             header_text_layout.addWidget(self.header_subtitle)
             header_layout.addLayout(header_text_layout, 1)
             self.theme_badge = QtWidgets.QLabel()
             self.theme_badge.setObjectName("aminateMobuThemeBadge")
+            self.theme_badge.setToolTip("Shows which Aminate theme is active.")
             header_layout.addWidget(self.theme_badge)
             self.theme_button = QtWidgets.QPushButton()
             self.theme_button.setObjectName("aminateMobuThemeToggle")
@@ -2233,10 +2479,12 @@ if QtWidgets:
             self.status_label = QtWidgets.QLabel("Ready.")
             self.status_label.setObjectName("mayaAnimWorkflowStatusLabel")
             self.status_label.setWordWrap(True)
+            self.status_label.setToolTip("This line shows the newest Aminate status message.")
             main_layout.addWidget(self.status_label)
             self.status_memo = QtWidgets.QPlainTextEdit()
             self.status_memo.setReadOnly(True)
             self.status_memo.setObjectName("aminateMobuStatusMemo")
+            self.status_memo.setToolTip("This area shows the full Aminate run history for the current session.")
             main_layout.addWidget(self.status_memo, 1)
             footer_layout = QtWidgets.QHBoxLayout()
             self.brand_label = QtWidgets.QLabel(
@@ -2246,9 +2494,11 @@ if QtWidgets:
             self.brand_label.setOpenExternalLinks(False)
             self.brand_label.linkActivated.connect(self._open_follow_url)
             self.brand_label.setWordWrap(True)
+            self.brand_label.setToolTip("Open followamir.com.")
             footer_layout.addWidget(self.brand_label, 1)
             self.version_label = QtWidgets.QLabel(TOOL_VERSION)
             self.version_label.setObjectName("mayaAnimWorkflowVersionLabel")
+            self.version_label.setToolTip("Shows which Aminate Mobu build is loaded.")
             footer_layout.addWidget(self.version_label)
             self.donate_button = QtWidgets.QPushButton("Donate")
             self.donate_button.setToolTip("Open Amir's PayPal donate link. Set AMIR_PAYPAL_DONATE_URL or AMIR_DONATE_URL to customize it.")
@@ -2272,13 +2522,17 @@ if QtWidgets:
 
         def _build_actions_group(self):
             group = QtWidgets.QGroupBox("Actions")
+            group.setToolTip("Main Aminate tools for cleaning scenes, mapping rigs, and fixing setup issues.")
             layout = QtWidgets.QVBoxLayout(group)
             layout.setSpacing(6)
             marker_row = QtWidgets.QHBoxLayout()
             marker_row.setSpacing(6)
-            marker_row.addWidget(QtWidgets.QLabel("Prop Marker Base Name"))
+            marker_label = QtWidgets.QLabel("Prop Marker Base Name")
+            marker_label.setToolTip("Name prefix Aminate uses when renaming animated prop markers.")
+            marker_row.addWidget(marker_label)
             self.prop_marker_base_field = QtWidgets.QLineEdit(get_prop_marker_base_name())
             self.prop_marker_base_field.setPlaceholderText(DEFAULT_PROP_MARKER_BASE_NAME)
+            self.prop_marker_base_field.setToolTip("Type the base name for animated prop markers such as Gun or Sword.")
             marker_row.addWidget(self.prop_marker_base_field, 1)
             layout.addLayout(marker_row)
             cleaner_grid = QtWidgets.QGridLayout()
@@ -2306,6 +2560,7 @@ if QtWidgets:
 
         def _build_note_group(self):
             group = QtWidgets.QGroupBox("Notes")
+            group.setToolTip("Short simple notes about how Aminate handles markers and cleanup.")
             layout = QtWidgets.QVBoxLayout(group)
             layout.setSpacing(4)
             hint = QtWidgets.QLabel(
@@ -2313,11 +2568,15 @@ if QtWidgets:
             )
             hint.setObjectName("aminateMobuGroupHint")
             hint.setWordWrap(True)
+            hint.setToolTip("Explains what Aminate keeps, renames, and deletes during marker cleanup.")
             layout.addWidget(hint)
             return group
 
         def _action_button(self, caption, callback):
             button = QtWidgets.QPushButton(caption)
+            tooltip = _easy_tooltip_text(caption, "QPushButton")
+            if tooltip:
+                button.setToolTip(tooltip)
             button.clicked.connect(lambda _checked=False, fn=callback: fn())
             return button
 
@@ -2331,6 +2590,7 @@ if QtWidgets:
                 self.theme_button.setToolTip(_theme_tooltip(self.theme_key))
             _style_donate_button(getattr(self, "donate_button", None), self.theme_key)
             _apply_app_theme(self.theme_key)
+            install_easy_motionbuilder_tooltips()
 
         def _toggle_theme(self):
             self._apply_theme(_other_theme(self.theme_key))
@@ -2438,6 +2698,7 @@ def launch_aminate_mobu():
     global _TOOL
     install_runtime_watchers()
     _ensure_aminate_launcher_toolbar()
+    install_easy_motionbuilder_tooltips()
     if QtWidgets is not None and hasattr(_qt_host_main_window(), "addDockWidget"):
         if _QT_DOCK is None:
             existing_docks = _existing_aminate_mobu_docks()
@@ -2461,6 +2722,7 @@ def launch_aminate_mobu():
             pass
         _set_status_lines(_tool_intro_lines())
         _refresh_dashboard()
+        install_easy_motionbuilder_tooltips()
         return _QT_DOCK
     if TOOL_NAME in pyfbsdk_additions.FBToolList:
         _TOOL = pyfbsdk_additions.FBToolList[TOOL_NAME]
