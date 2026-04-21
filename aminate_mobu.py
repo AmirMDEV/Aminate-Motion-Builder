@@ -379,7 +379,7 @@ QGroupBox::title {
 }
 QTabWidget::pane {
     border: 1px solid #4A525B;
-    border-radius: 4px;
+    border-radius: 2px;
     top: -1px;
     background-color: #343940;
 }
@@ -388,22 +388,30 @@ QTabBar::tab {
     color: #CDD4DB;
     border: 1px solid #49515A;
     border-bottom: 0px;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-    padding: 6px 11px;
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
+    padding: 5px 10px;
     margin-right: 2px;
 }
 QTabBar::tab:hover {
-    background-color: #40464D;
+    background-color: #41484F;
     color: #E6EBEF;
 }
 QTabBar::tab:selected {
-    background-color: #4A535D;
+    background-color: #566472;
     color: #F2F4F6;
-    border-color: #70808E;
+    border-color: #7F91A3;
 }
 QTabBar::tab:!selected {
-    margin-top: 3px;
+    margin-top: 1px;
+}
+QSplitter::handle:horizontal {
+    width: 2px;
+    background-color: #4F565E;
+}
+QSplitter::handle:vertical {
+    height: 2px;
+    background-color: #4F565E;
 }
 QScrollBar:vertical,
 QScrollBar:horizontal {
@@ -413,14 +421,14 @@ QScrollBar:horizontal {
 }
 QScrollBar::handle:vertical,
 QScrollBar::handle:horizontal {
-    background-color: #515962;
+    background-color: #4B535C;
     border-radius: 4px;
-    min-height: 24px;
-    min-width: 24px;
+    min-height: 18px;
+    min-width: 18px;
 }
 QScrollBar::handle:vertical:hover,
 QScrollBar::handle:horizontal:hover {
-    background-color: #626B75;
+    background-color: #5A646E;
 }
 QScrollBar::add-line,
 QScrollBar::sub-line {
@@ -511,8 +519,16 @@ QTextEdit {
     background-color: #3E444A;
     color: #E1E6EA;
     border: 1px solid #545D67;
-    border-radius: 4px;
-    padding: 4px 8px;
+    border-radius: 3px;
+    padding: 3px 7px;
+}
+QToolBar QToolButton,
+QToolBar QComboBox,
+QToolBar QAbstractSpinBox {
+    background-color: #3B4147;
+    border: 1px solid #4E5660;
+    border-radius: 2px;
+    padding: 2px 5px;
 }
 QPushButton:hover,
 QToolButton:hover,
@@ -540,10 +556,10 @@ QAbstractSpinBox:focus {
     border: 1px solid #728A9D;
 }
 QHeaderView::section {
-    background-color: #3E444A;
+    background-color: #3A4046;
     color: #D9DEE3;
-    border: 1px solid #525A63;
-    padding: 4px 10px;
+    border: 1px solid #4E5660;
+    padding: 3px 8px;
 }
 QTabWidget::pane {
     border: 1px solid #4F5861;
@@ -555,30 +571,50 @@ QTabBar::tab {
     color: #CDD3D9;
     border: 1px solid #4A535D;
     border-bottom: 0px;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-    padding: 5px 11px;
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
+    padding: 4px 9px;
     margin-right: 2px;
 }
 QTabBar::tab:hover {
-    background-color: #434951;
+    background-color: #434A52;
     color: #ECF0F2;
     border-color: #65707C;
 }
 QTabBar::tab:selected {
-    background-color: #4B545E;
+    background-color: #596A7B;
     color: #F2F4F5;
-    border-color: #778695;
+    border-color: #8396A8;
 }
 QTabBar::tab:!selected {
-    margin-top: 3px;
+    margin-top: 1px;
 }
 QTreeView,
 QListView,
 QTableView {
-    alternate-background-color: #394046;
-    gridline-color: #505761;
+    background-color: #2F3439;
+    alternate-background-color: #353B40;
+    gridline-color: #4E5660;
     border: 1px solid #4F5862;
+}
+QTreeView::item:selected,
+QListView::item:selected,
+QTableView::item:selected {
+    background-color: #55687A;
+    color: #F3F5F7;
+}
+QTreeView::item:hover,
+QListView::item:hover,
+QTableView::item:hover {
+    background-color: #3F464E;
+}
+QSplitter::handle:horizontal {
+    width: 2px;
+    background-color: #505861;
+}
+QSplitter::handle:vertical {
+    height: 2px;
+    background-color: #505861;
 }
 QScrollBar:vertical,
 QScrollBar:horizontal {
@@ -588,14 +624,14 @@ QScrollBar:horizontal {
 }
 QScrollBar::handle:vertical,
 QScrollBar::handle:horizontal {
-    background: #525A63;
+    background: #4C545D;
     border-radius: 4px;
-    min-height: 22px;
-    min-width: 22px;
+    min-height: 18px;
+    min-width: 18px;
 }
 QScrollBar::handle:vertical:hover,
 QScrollBar::handle:horizontal:hover {
-    background: #646C76;
+    background: #5A646E;
 }
 QScrollBar::add-line,
 QScrollBar::sub-line {
@@ -607,15 +643,16 @@ QStatusBar {
 }
 QGroupBox {
     border: 1px solid #4B535C;
-    border-radius: 4px;
-    margin-top: 12px;
+    border-radius: 2px;
+    margin-top: 10px;
     padding: 8px;
-    background-color: #383E44;
+    background-color: #373C42;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
     left: 10px;
     padding: 0px 4px;
+    color: #C8D0D7;
 }
 """,
 }
