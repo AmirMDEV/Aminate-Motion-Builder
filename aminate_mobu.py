@@ -559,6 +559,41 @@ QAbstractSpinBox::up-button:hover,
 QAbstractSpinBox::down-button:hover {
     background-color: rgba(90, 104, 118, 0.28);
 }
+QDockWidget QLabel {
+    color: #D4DBE2;
+}
+QDockWidget QLineEdit,
+QDockWidget QComboBox,
+QDockWidget QAbstractSpinBox {
+    border-radius: 4px;
+    padding: 2px 6px;
+    min-height: 18px;
+}
+QDockWidget QToolButton {
+    border-radius: 4px;
+    padding: 1px 5px;
+    min-height: 17px;
+    font-weight: 500;
+}
+QDockWidget QToolButton:hover,
+QDockWidget QComboBox:hover,
+QDockWidget QAbstractSpinBox:hover,
+QDockWidget QLineEdit:hover {
+    border-color: #7E8D9E;
+}
+QDockWidget QComboBox::drop-down {
+    width: 13px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+QDockWidget QAbstractSpinBox::up-button,
+QDockWidget QAbstractSpinBox::down-button {
+    width: 13px;
+}
+QDockWidget QComboBox QAbstractItemView::item {
+    padding: 3px 8px;
+    min-height: 18px;
+}
 QPushButton:hover,
 QToolButton:hover,
 QComboBox:hover,
