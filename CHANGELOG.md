@@ -27,3 +27,4 @@
 - Added a live MotionBuilder UI snapshot baseline so the `MotionBuilder` theme button can restore the captured current layout instead of only relying on the stock app baseline
 - Added automatic one-time baseline layout capture on Aminate startup plus a no-input UIA reference capture tool for the currently open MotionBuilder window
 - Added a telnet-friendly live verification helper that proves the captured current MotionBuilder layout restores after switching to Modern and back
+- Captured a pure host MotionBuilder full-window reference without Aminate open and generated a modern full-window concept mock that preserves the same layout while modernizing iconography and chrome
