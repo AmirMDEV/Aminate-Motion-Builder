@@ -488,7 +488,7 @@ QTextEdit {
     color: #E8EDF0;
     border: 1px solid #606C79;
     border-radius: 6px;
-    padding: 4px 9px;
+    padding: 5px 10px;
 }
 QToolBar QToolButton,
 QToolBar QComboBox,
@@ -593,10 +593,11 @@ QAbstractSpinBox:focus {
     border: 1px solid #728A9D;
 }
 QHeaderView::section {
-    background-color: #3A4046;
-    color: #D9DEE3;
-    border: 1px solid #4E5660;
-    padding: 3px 8px;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #40474E, stop:1 #353B42);
+    color: #E2E7EB;
+    border: 1px solid #55606B;
+    padding: 4px 10px;
+    font-weight: 600;
 }
 QTabWidget::pane {
     border: 1px solid #58636E;
@@ -633,21 +634,32 @@ QTabBar::tab:!selected {
 QTreeView,
 QListView,
 QTableView {
-    background-color: #2F3439;
-    alternate-background-color: #353B40;
-    gridline-color: #4E5660;
-    border: 1px solid #4F5862;
+    background-color: #30353B;
+    alternate-background-color: #373D44;
+    gridline-color: #55606B;
+    border: 1px solid #55606B;
+    show-decoration-selected: 1;
+}
+QTreeView::item,
+QListView::item,
+QTableView::item {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 5px;
+    padding-right: 5px;
+    border: 1px solid transparent;
 }
 QTreeView::item:selected,
 QListView::item:selected,
 QTableView::item:selected {
-    background-color: #55687A;
+    background-color: #5B7084;
     color: #F3F5F7;
+    border-color: #90A5BA;
 }
 QTreeView::item:hover,
 QListView::item:hover,
 QTableView::item:hover {
-    background-color: #3F464E;
+    background-color: #444C55;
 }
 QSplitter::handle:horizontal {
     width: 2px;

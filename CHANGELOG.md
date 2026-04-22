@@ -22,3 +22,4 @@
 - Retuned modern-theme tab headers across both host MotionBuilder panes and Aminate-local tabs with rounder shapes, clearer hover hierarchy, and stronger selected-state separation
 - Retuned remaining modern-theme chrome such as dock title bars, dock utility buttons, combo dropdown lanes, popup lists, and status seams to replace more of the lingering native default styling
 - Tightened the remaining modern-theme utility chrome again with stronger group-box title chips, menu pressed and separator states, spin-box subcontrols, and status-label styling to reduce the last obvious stock Qt surfaces
+- Tightened lower-pane interiors with denser search-field styling, stronger header treatment, and clearer list and tree row hierarchy so the lower workspace matches the polished upper chrome
