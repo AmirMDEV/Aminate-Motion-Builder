@@ -24,3 +24,6 @@
 - Tightened the remaining modern-theme utility chrome again with stronger group-box title chips, menu pressed and separator states, spin-box subcontrols, and status-label styling to reduce the last obvious stock Qt surfaces
 - Tightened lower-pane interiors with denser search-field styling, stronger header treatment, and clearer list and tree row hierarchy so the lower workspace matches the polished upper chrome
 - Added dock-scoped compact utility overrides so transport, key-control, and other narrow dock controls feel tighter and less like generic full-size form controls
+- Added a live MotionBuilder UI snapshot baseline so the `MotionBuilder` theme button can restore the captured current layout instead of only relying on the stock app baseline
+- Added automatic one-time baseline layout capture on Aminate startup plus a no-input UIA reference capture tool for the currently open MotionBuilder window
+- Added a telnet-friendly live verification helper that proves the captured current MotionBuilder layout restores after switching to Modern and back

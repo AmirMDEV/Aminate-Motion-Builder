@@ -1,0 +1,142 @@
+{
+  "captured_at": "2026-04-22 17:00:18",
+  "process_id": 66748,
+  "window_title": "Autodesk MotionBuilder 2026.1 - Untitled",
+  "root_title": "Mainboard",
+  "root_class_name": "QMainWindow",
+  "root_rect": {
+    "left": -1509,
+    "top": 238,
+    "right": -1,
+    "bottom": 1238,
+    "width": 1508,
+    "height": 1000
+  },
+  "top_level_menu_items": [
+    "File",
+    "Edit",
+    "Animation",
+    "Settings",
+    "Layout",
+    "Open Reality",
+    "Python Tools",
+    "Window",
+    "Help"
+  ],
+  "top_level_tool_windows": [
+    {
+      "title": "Character Controls",
+      "class_name": "ToolWindow",
+      "rect": {
+        "left": -1112,
+        "top": 288,
+        "right": -862,
+        "bottom": 823,
+        "width": 250,
+        "height": 535
+      }
+    },
+    {
+      "title": "Resources",
+      "class_name": "ToolWindow",
+      "rect": {
+        "left": -1062,
+        "top": 934,
+        "right": -862,
+        "bottom": 1238,
+        "width": 200,
+        "height": 304
+      }
+    },
+    {
+      "title": "Key Controls",
+      "class_name": "ToolWindow",
+      "rect": {
+        "left": -1305,
+        "top": 934,
+        "right": -1065,
+        "bottom": 1083,
+        "width": 240,
+        "height": 149
+      }
+    },
+    {
+      "title": "Animation Layers",
+      "class_name": "ToolWindow",
+      "rect": {
+        "left": -1305,
+        "top": 1087,
+        "right": -1066,
+        "bottom": 1238,
+        "width": 239,
+        "height": 151
+      }
+    },
+    {
+      "title": "Viewer",
+      "class_name": "ToolWindow",
+      "rect": {
+        "left": -1509,
+        "top": 288,
+        "right": -1116,
+        "bottom": 823,
+        "width": 393,
+        "height": 535
+      }
+    },
+    {
+      "title": "Transport Controls  -  Keying Group: TR",
+      "class_name": "ToolWindow",
+      "rect": {
+        "left": -1509,
+        "top": 827,
+        "right": -862,
+        "bottom": 930,
+        "width": 647,
+        "height": 103
+      }
+    },
+    {
+      "title": "Navigator",
+      "class_name": "ToolWindow",
+      "rect": {
+        "left": -1509,
+        "top": 934,
+        "right": -1309,
+        "bottom": 1238,
+        "width": 200,
+        "height": 304
+      }
+    },
+    {
+      "title": "Aminate Mobu",
+      "class_name": "AminateMobuDockWidget",
+      "rect": {
+        "left": -858,
+        "top": 288,
+        "right": 2,
+        "bottom": 1238,
+        "width": 860,
+        "height": 950
+      }
+    }
+  ],
+  "toolbars": [
+    {
+      "title": "Aminate",
+      "class_name": "QToolBar",
+      "rect": {
+        "left": -1509,
+        "top": 260,
+        "right": -1,
+        "bottom": 288,
+        "width": 1508,
+        "height": 28
+      },
+      "buttons": [
+        "Aminate"
+      ]
+    }
+  ],
+  "screenshot_path": "C:\\Users\\Amir Mansaray\\Documents\\Github\\Aminate-Motionbuilder\\motionbuilder_default_ui_reference.png"
+}

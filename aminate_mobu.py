@@ -6,6 +6,8 @@ MotionBuilder sibling toolkit for Aminate.
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 import re
 import time
@@ -882,6 +884,7 @@ _APP_THEME_BASELINE_STYLE = None
 APP_BASELINE_STYLESHEET_ATTR = "_aminate_mobu_baseline_stylesheet"
 APP_BASELINE_PALETTE_ATTR = "_aminate_mobu_baseline_palette"
 APP_BASELINE_STYLE_ATTR = "_aminate_mobu_baseline_style"
+DEFAULT_UI_SNAPSHOT_FILENAME = "motionbuilder_default_ui_snapshot.json"
 
 
 def _now():
@@ -890,6 +893,100 @@ def _now():
 
 def _safe_caption(text):
     return str(text or "").strip()
+
+
+def _module_root_dir():
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def _default_ui_snapshot_path():
+    return os.path.join(_module_root_dir(), DEFAULT_UI_SNAPSHOT_FILENAME)
+
+
+def _byte_array_to_base64(value):
+    if value is None:
+        return ""
+    try:
+        return bytes(value.toBase64()).decode("ascii")
+    except Exception:
+        try:
+            return base64.b64encode(bytes(value)).decode("ascii")
+        except Exception:
+            return ""
+
+
+def _byte_array_from_base64(text):
+    if not text or QtCore is None:
+        return None
+    try:
+        return QtCore.QByteArray.fromBase64(text.encode("ascii"))
+    except Exception:
+        try:
+            data = base64.b64decode(text.encode("ascii"))
+            payload = QtCore.QByteArray()
+            payload.append(data)
+            return payload
+        except Exception:
+            return None
+
+
+def capture_current_ui_snapshot(main=None, snapshot_path=None):
+    main = main or _qt_host_main_window()
+    if main is None:
+        return None
+    if not hasattr(main, "saveState") or not hasattr(main, "saveGeometry"):
+        return None
+    app = _qt_application()
+    theme_key = get_active_theme()
+    snapshot = {
+        "version": 1,
+        "captured_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "theme_key_at_capture": theme_key,
+        "window_title": _safe_caption(getattr(main, "windowTitle", lambda: "")()),
+        "app_stylesheet_length": len((app.styleSheet() or "")) if app is not None else 0,
+        "layout_only": True,
+        "geometry_b64": _byte_array_to_base64(main.saveGeometry()),
+        "state_b64": _byte_array_to_base64(main.saveState()),
+    }
+    snapshot_path = snapshot_path or _default_ui_snapshot_path()
+    with open(snapshot_path, "w", encoding="utf-8") as handle:
+        json.dump(snapshot, handle, indent=2)
+    return snapshot_path
+
+
+def ensure_default_ui_snapshot(main=None, force=False):
+    snapshot_path = _default_ui_snapshot_path()
+    if not force and os.path.isfile(snapshot_path):
+        return snapshot_path
+    return capture_current_ui_snapshot(main=main, snapshot_path=snapshot_path)
+
+
+def _restore_saved_ui_snapshot(main=None, snapshot_path=None):
+    main = main or _qt_host_main_window()
+    if main is None:
+        return False
+    snapshot_path = snapshot_path or _default_ui_snapshot_path()
+    if not os.path.isfile(snapshot_path):
+        return False
+    try:
+        with open(snapshot_path, "r", encoding="utf-8") as handle:
+            snapshot = json.load(handle)
+    except Exception:
+        return False
+    restored = False
+    geometry = _byte_array_from_base64(snapshot.get("geometry_b64", ""))
+    state = _byte_array_from_base64(snapshot.get("state_b64", ""))
+    try:
+        if geometry is not None and not geometry.isEmpty() and hasattr(main, "restoreGeometry"):
+            restored = bool(main.restoreGeometry(geometry)) or restored
+    except Exception:
+        pass
+    try:
+        if state is not None and not state.isEmpty() and hasattr(main, "restoreState"):
+            restored = bool(main.restoreState(state)) or restored
+    except Exception:
+        pass
+    return restored
 
 
 def _component_short_name(component):
@@ -1512,6 +1609,8 @@ def _apply_app_theme(theme_key):
         _APP_THEME_OWNED = False
         _store_baseline_on_app(app)
         _refresh_qt_theme()
+        _restore_saved_ui_snapshot()
+        _refresh_qt_theme()
         return True
     try:
         app.setStyle("Fusion")
@@ -1659,6 +1758,7 @@ def _ensure_aminate_launcher_toolbar():
 
 def ensure_motionbuilder_ui_entry():
     prime_app_theme_baseline()
+    ensure_default_ui_snapshot()
     toolbar = _ensure_aminate_launcher_toolbar()
     install_easy_motionbuilder_tooltips()
     return toolbar
@@ -2823,6 +2923,7 @@ def launch_aminate_mobu():
     global _QT_DOCK
     global _TOOL
     install_runtime_watchers()
+    ensure_default_ui_snapshot()
     _ensure_aminate_launcher_toolbar()
     install_easy_motionbuilder_tooltips()
     if QtWidgets is not None and hasattr(_qt_host_main_window(), "addDockWidget"):
