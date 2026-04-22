@@ -4,6 +4,7 @@
 
 - Rebuilt the `Modern` theme from the captured clean-host reference and generated concept with a darker graphite and steel-blue token set across host chrome and Aminate-owned surfaces while leaving the native `MotionBuilder` restore path untouched
 - Pushed the `Modern` theme closer to the concept again with darker palette roles, broader dock child surface styling, and abstract-button coverage for remaining host chrome that still looked native
+- Tuned the core modern palette and shared host surfaces again so custom-painted viewer and transport lanes inherit a darker blue-gray value range closer to the concept image
 
 ## 2026-04-21
 

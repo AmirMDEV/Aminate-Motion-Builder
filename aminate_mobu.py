@@ -381,8 +381,8 @@ THEME_MOTIONBUILDER: "",
 THEME_MODERN: """
 QWidget {
     color: #D6DDE4;
-    background-color: #2E353D;
-    selection-background-color: #516A7F;
+    background-color: #29313A;
+    selection-background-color: #4D677E;
     selection-color: #F2F5F8;
 }
 QMainWindow,
@@ -398,7 +398,7 @@ QAbstractScrollArea,
 QTreeView,
 QListView,
 QTableView {
-    background-color: #2E353D;
+    background-color: #273039;
 }
 QDockWidget > QWidget,
 QStackedWidget > QWidget,
@@ -409,7 +409,7 @@ QTabWidget QWidget,
 QAbstractScrollArea > QWidget,
 QAbstractScrollArea > QWidget > QWidget,
 QFrame {
-    background-color: #2B323A;
+    background-color: #242D35;
 }
 QDockWidget QLabel,
 QStackedWidget QLabel,
@@ -417,7 +417,7 @@ QTabWidget QLabel {
     background-color: transparent;
 }
 QDockWidget::title {
-    background-color: #313943;
+    background-color: #2D3741;
     color: #DEE4EA;
     padding-left: 10px;
     padding-right: 34px;
@@ -447,7 +447,7 @@ QDockWidget::float-button:pressed {
 }
 QMenuBar {
     border-bottom: 1px solid #3F4C58;
-    background-color: #293039;
+    background-color: #25303A;
 }
 QMenuBar::item {
     background: transparent;
@@ -480,7 +480,7 @@ QMenu::separator {
 QToolBar {
     border: 0px;
     spacing: 3px;
-    background-color: #313943;
+    background-color: #2C3640;
 }
 QToolBar::separator {
     background-color: #44525F;
@@ -685,7 +685,7 @@ QAbstractSpinBox:focus {
     border: 1px solid #6F889E;
 }
 QHeaderView::section {
-    background-color: #313943;
+    background-color: #2D3741;
     color: #DEE5EB;
     border: 1px solid #43515E;
     padding: 4px 8px;
@@ -695,7 +695,7 @@ QTabWidget::pane {
     border: 1px solid #42505C;
     border-radius: 6px;
     top: -1px;
-    background-color: #2B323A;
+    background-color: #242D35;
     padding: 2px;
 }
 QTabBar::tab {
@@ -726,8 +726,8 @@ QTabBar::tab:!selected {
 QTreeView,
 QListView,
 QTableView {
-    background-color: #242B31;
-    alternate-background-color: #2C343C;
+    background-color: #1F262D;
+    alternate-background-color: #273039;
     gridline-color: #43515E;
     border: 1px solid #42505D;
     show-decoration-selected: 1;
@@ -799,7 +799,7 @@ QGroupBox {
     border-radius: 6px;
     margin-top: 10px;
     padding: 10px;
-    background-color: #2E363F;
+    background-color: #28313A;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
@@ -1508,23 +1508,23 @@ def _make_modern_dark_palette():
         return None
     palette = QtGui.QPalette()
     colors = {
-        QtGui.QPalette.Window: QtGui.QColor("#29313A"),
+        QtGui.QPalette.Window: QtGui.QColor("#25303A"),
         QtGui.QPalette.WindowText: QtGui.QColor("#DEE4EA"),
-        QtGui.QPalette.Base: QtGui.QColor("#1F262D"),
-        QtGui.QPalette.AlternateBase: QtGui.QColor("#2B323A"),
-        QtGui.QPalette.ToolTipBase: QtGui.QColor("#2B323A"),
+        QtGui.QPalette.Base: QtGui.QColor("#182128"),
+        QtGui.QPalette.AlternateBase: QtGui.QColor("#242D35"),
+        QtGui.QPalette.ToolTipBase: QtGui.QColor("#242D35"),
         QtGui.QPalette.ToolTipText: QtGui.QColor("#F0F4F7"),
         QtGui.QPalette.Text: QtGui.QColor("#E1E7EC"),
-        QtGui.QPalette.Button: QtGui.QColor("#313A43"),
+        QtGui.QPalette.Button: QtGui.QColor("#2D3741"),
         QtGui.QPalette.ButtonText: QtGui.QColor("#EDF2F5"),
         QtGui.QPalette.BrightText: QtGui.QColor("#FFFFFF"),
-        QtGui.QPalette.Highlight: QtGui.QColor("#486278"),
+        QtGui.QPalette.Highlight: QtGui.QColor("#4B667E"),
         QtGui.QPalette.HighlightedText: QtGui.QColor("#F4F7F9"),
-        QtGui.QPalette.Light: QtGui.QColor("#41505D"),
-        QtGui.QPalette.Midlight: QtGui.QColor("#394754"),
-        QtGui.QPalette.Mid: QtGui.QColor("#33404C"),
-        QtGui.QPalette.Dark: QtGui.QColor("#1A2026"),
-        QtGui.QPalette.Shadow: QtGui.QColor("#14191E"),
+        QtGui.QPalette.Light: QtGui.QColor("#3A4957"),
+        QtGui.QPalette.Midlight: QtGui.QColor("#344250"),
+        QtGui.QPalette.Mid: QtGui.QColor("#2D3945"),
+        QtGui.QPalette.Dark: QtGui.QColor("#141C23"),
+        QtGui.QPalette.Shadow: QtGui.QColor("#10161B"),
         QtGui.QPalette.Link: QtGui.QColor("#85A7C0"),
         QtGui.QPalette.LinkVisited: QtGui.QColor("#A1B8C9"),
         QtGui.QPalette.PlaceholderText: QtGui.QColor("#7A8691"),
@@ -1536,13 +1536,13 @@ def _make_modern_dark_palette():
             pass
     try:
         disabled_text = QtGui.QColor("#717D88")
-        disabled_bg = QtGui.QColor("#22292F")
+        disabled_bg = QtGui.QColor("#1D252C")
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText, disabled_text)
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, disabled_text)
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.WindowText, disabled_text)
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Button, disabled_bg)
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base, disabled_bg)
-        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Window, QtGui.QColor("#252C33"))
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Window, QtGui.QColor("#202930"))
     except Exception:
         pass
     return palette
