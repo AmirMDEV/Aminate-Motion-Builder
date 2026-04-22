@@ -221,7 +221,8 @@ QPushButton#aminateMobuThemeToggle:pressed {
     border-color: #73889C;
 }
 QPushButton,
-QToolButton {
+QToolButton,
+QAbstractButton {
     background-color: #3A434D;
     color: #E9EDF1;
     border: 1px solid #53616F;
@@ -231,22 +232,26 @@ QToolButton {
     outline: none;
 }
 QPushButton:hover,
-QToolButton:hover {
+QToolButton:hover,
+QAbstractButton:hover {
     background-color: #45505C;
     border-color: #687A8C;
 }
 QPushButton:pressed,
-QToolButton:pressed {
+QToolButton:pressed,
+QAbstractButton:pressed {
     background-color: #2F3740;
     border-color: #73879B;
 }
 QPushButton:checked,
-QToolButton:checked {
+QToolButton:checked,
+QAbstractButton:checked {
     background-color: #516374;
     border-color: #7E96AA;
 }
 QPushButton:disabled,
-QToolButton:disabled {
+QToolButton:disabled,
+QAbstractButton:disabled {
     background-color: #262C32;
     color: #74808A;
     border-color: #3D4852;
@@ -395,6 +400,22 @@ QListView,
 QTableView {
     background-color: #2E353D;
 }
+QDockWidget > QWidget,
+QStackedWidget > QWidget,
+QTabWidget > QWidget,
+QDockWidget QWidget,
+QStackedWidget QWidget,
+QTabWidget QWidget,
+QAbstractScrollArea > QWidget,
+QAbstractScrollArea > QWidget > QWidget,
+QFrame {
+    background-color: #2B323A;
+}
+QDockWidget QLabel,
+QStackedWidget QLabel,
+QTabWidget QLabel {
+    background-color: transparent;
+}
 QDockWidget::title {
     background-color: #313943;
     color: #DEE4EA;
@@ -484,7 +505,8 @@ QToolButton#aminateMobuLauncherButton:checked {
     border: 1px solid #8099AF;
 }
 QPushButton,
-QToolButton {
+QToolButton,
+QAbstractButton {
     background-color: #39434D;
     color: #E9EEF2;
     border: 1px solid #52616F;
@@ -504,6 +526,7 @@ QTextEdit {
     padding: 4px 8px;
 }
 QToolBar QToolButton,
+QToolBar QAbstractButton,
 QToolBar QComboBox,
 QToolBar QAbstractSpinBox {
     background-color: #36404A;
@@ -512,12 +535,14 @@ QToolBar QAbstractSpinBox {
     padding: 2px 7px;
 }
 QToolBar QToolButton:hover,
+QToolBar QAbstractButton:hover,
 QToolBar QComboBox:hover,
 QToolBar QAbstractSpinBox:hover {
     background-color: #414C58;
     border-color: #65788A;
 }
 QToolBar QToolButton:pressed,
+QToolBar QAbstractButton:pressed,
 QToolBar QToolButton:checked {
     background-color: #2E3741;
     border-color: #73879C;
@@ -590,7 +615,15 @@ QDockWidget QToolButton {
     min-height: 17px;
     font-weight: 500;
 }
+QDockWidget QAbstractButton {
+    background-color: #36404A;
+    color: #DDE4EA;
+    border: 1px solid #4A5A69;
+    border-radius: 4px;
+    padding: 1px 5px;
+}
 QDockWidget QToolButton:hover,
+QDockWidget QAbstractButton:hover,
 QDockWidget QComboBox:hover,
 QDockWidget QAbstractSpinBox:hover,
 QDockWidget QLineEdit:hover {
@@ -610,7 +643,8 @@ QDockWidget QComboBox QAbstractItemView::item {
     min-height: 18px;
 }
 QPushButton:hover,
-QToolButton:hover {
+QToolButton:hover,
+QAbstractButton:hover {
     background-color: #44505C;
     border-color: #697C8E;
 }
@@ -622,18 +656,21 @@ QTextEdit:hover {
     border-color: #697C8E;
 }
 QPushButton:pressed,
-QToolButton:pressed {
+QToolButton:pressed,
+QAbstractButton:pressed {
     background-color: #2F3740;
     border-color: #73879B;
 }
 QPushButton:checked,
 QToolButton:checked,
+QAbstractButton:checked,
 QToolButton:selected {
     background-color: #516374;
     border-color: #8098AC;
 }
 QPushButton:disabled,
 QToolButton:disabled,
+QAbstractButton:disabled,
 QComboBox:disabled,
 QAbstractSpinBox:disabled {
     background-color: #262C32;
@@ -1471,26 +1508,26 @@ def _make_modern_dark_palette():
         return None
     palette = QtGui.QPalette()
     colors = {
-        QtGui.QPalette.Window: QtGui.QColor("#2E353D"),
+        QtGui.QPalette.Window: QtGui.QColor("#29313A"),
         QtGui.QPalette.WindowText: QtGui.QColor("#DEE4EA"),
-        QtGui.QPalette.Base: QtGui.QColor("#242B32"),
-        QtGui.QPalette.AlternateBase: QtGui.QColor("#313943"),
-        QtGui.QPalette.ToolTipBase: QtGui.QColor("#313943"),
+        QtGui.QPalette.Base: QtGui.QColor("#1F262D"),
+        QtGui.QPalette.AlternateBase: QtGui.QColor("#2B323A"),
+        QtGui.QPalette.ToolTipBase: QtGui.QColor("#2B323A"),
         QtGui.QPalette.ToolTipText: QtGui.QColor("#F0F4F7"),
         QtGui.QPalette.Text: QtGui.QColor("#E1E7EC"),
-        QtGui.QPalette.Button: QtGui.QColor("#39434D"),
+        QtGui.QPalette.Button: QtGui.QColor("#313A43"),
         QtGui.QPalette.ButtonText: QtGui.QColor("#EDF2F5"),
         QtGui.QPalette.BrightText: QtGui.QColor("#FFFFFF"),
-        QtGui.QPalette.Highlight: QtGui.QColor("#516A7F"),
+        QtGui.QPalette.Highlight: QtGui.QColor("#486278"),
         QtGui.QPalette.HighlightedText: QtGui.QColor("#F4F7F9"),
-        QtGui.QPalette.Light: QtGui.QColor("#4A5662"),
-        QtGui.QPalette.Midlight: QtGui.QColor("#43505C"),
-        QtGui.QPalette.Mid: QtGui.QColor("#3C4650"),
-        QtGui.QPalette.Dark: QtGui.QColor("#1F252B"),
-        QtGui.QPalette.Shadow: QtGui.QColor("#171C21"),
-        QtGui.QPalette.Link: QtGui.QColor("#87A6BD"),
-        QtGui.QPalette.LinkVisited: QtGui.QColor("#A4B8C8"),
-        QtGui.QPalette.PlaceholderText: QtGui.QColor("#7F8A95"),
+        QtGui.QPalette.Light: QtGui.QColor("#41505D"),
+        QtGui.QPalette.Midlight: QtGui.QColor("#394754"),
+        QtGui.QPalette.Mid: QtGui.QColor("#33404C"),
+        QtGui.QPalette.Dark: QtGui.QColor("#1A2026"),
+        QtGui.QPalette.Shadow: QtGui.QColor("#14191E"),
+        QtGui.QPalette.Link: QtGui.QColor("#85A7C0"),
+        QtGui.QPalette.LinkVisited: QtGui.QColor("#A1B8C9"),
+        QtGui.QPalette.PlaceholderText: QtGui.QColor("#7A8691"),
     }
     for role, color in colors.items():
         try:
@@ -1498,14 +1535,14 @@ def _make_modern_dark_palette():
         except Exception:
             pass
     try:
-        disabled_text = QtGui.QColor("#75808A")
-        disabled_bg = QtGui.QColor("#262C32")
+        disabled_text = QtGui.QColor("#717D88")
+        disabled_bg = QtGui.QColor("#22292F")
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText, disabled_text)
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, disabled_text)
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.WindowText, disabled_text)
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Button, disabled_bg)
         palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base, disabled_bg)
-        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Window, QtGui.QColor("#2A3036"))
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Window, QtGui.QColor("#252C33"))
     except Exception:
         pass
     return palette
