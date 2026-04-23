@@ -155,59 +155,70 @@ QWidget#aminateMobuWindow {
     background-color: #2F363E;
     color: #D8DEE5;
 }
+QWidget#aminateMobuWindow QLabel {
+    font-size: 10px;
+}
 QLabel#aminateMobuHeaderTitle {
     color: #F2F5F8;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
 }
 QLabel#aminateMobuHeaderSubtitle {
     color: #99A5B0;
-    font-size: 10px;
+    font-size: 9px;
 }
 QLabel#aminateMobuThemeBadge {
     background-color: #283038;
     color: #C7D1DB;
     border: 1px solid #43515E;
-    border-radius: 4px;
-    padding: 4px 10px;
+    border-radius: 3px;
+    font-size: 9px;
+    padding: 3px 8px;
 }
 QFrame#mayaAnimWorkflowTabIntro {
     background-color: #313A43;
     color: #DFE5EA;
     border: 1px solid #45525E;
     border-left: 3px solid #6D879A;
-    border-radius: 5px;
+    border-radius: 4px;
 }
 QLabel#mayaAnimWorkflowIntroTitle {
     color: #F1F4F7;
+    font-size: 11px;
     font-weight: 700;
+}
+QLabel#mayaAnimWorkflowIntroBody {
+    color: #C5CED7;
+    font-size: 10px;
 }
 QLabel#mayaAnimWorkflowStatusLabel {
     background-color: #252C33;
     color: #E1E6EB;
     border: 1px solid #3E4A55;
     border-radius: 4px;
-    padding: 5px 8px;
+    font-size: 10px;
+    padding: 4px 7px;
 }
 QPlainTextEdit#aminateMobuStatusMemo {
     background-color: #21272E;
     color: #D8DEE4;
     border: 1px solid #404C57;
-    border-radius: 4px;
-    padding: 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    padding: 5px;
     selection-background-color: #526A7F;
 }
 QLabel#mayaAnimWorkflowBrandLabel,
 QLabel#mayaAnimWorkflowVersionLabel,
 QLabel#aminateMobuGroupHint {
     color: #8D99A4;
-    font-size: 10px;
+    font-size: 9px;
 }
 QPushButton#aminateMobuThemeToggle {
     background-color: #38424C;
     border: 1px solid #546372;
-    border-radius: 5px;
-    padding: 5px 14px;
+    border-radius: 4px;
+    padding: 4px 12px;
     color: #EDF1F4;
     font-weight: 600;
     outline: none;
@@ -226,8 +237,8 @@ QAbstractButton {
     background-color: #3A434D;
     color: #E9EDF1;
     border: 1px solid #53616F;
-    border-radius: 5px;
-    padding: 5px 12px;
+    border-radius: 4px;
+    padding: 4px 10px;
     font-weight: 600;
     outline: none;
 }
@@ -265,8 +276,8 @@ QDoubleSpinBox {
     background-color: #252C33;
     color: #DEE4EA;
     border: 1px solid #43505C;
-    border-radius: 4px;
-    padding: 4px 7px;
+    border-radius: 3px;
+    padding: 3px 6px;
     selection-background-color: #526A7F;
 }
 QComboBox::drop-down {
@@ -299,18 +310,19 @@ QGroupBox {
     background-color: #313943;
     color: #E3E8ED;
     border: 1px solid #44515D;
-    border-radius: 6px;
-    margin-top: 12px;
-    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    padding: 8px;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
-    left: 10px;
-    padding: 1px 6px;
+    left: 8px;
+    font-size: 10px;
+    padding: 0px 5px;
     color: #E9EEF2;
     background-color: #38434F;
     border: 1px solid #546271;
-    border-radius: 4px;
+    border-radius: 3px;
 }
 QTabWidget::pane {
     border: 1px solid #44515D;
@@ -326,9 +338,9 @@ QTabBar::tab {
     border-bottom: 0px;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
-    padding: 5px 12px;
-    margin-right: 3px;
-    min-width: 44px;
+    padding: 4px 10px;
+    margin-right: 2px;
+    min-width: 38px;
 }
 QTabBar::tab:hover {
     background-color: #39434D;
@@ -339,7 +351,7 @@ QTabBar::tab:selected {
     background-color: #405262;
     color: #F3F6F8;
     border-color: #6F889D;
-    padding-bottom: 6px;
+    padding-bottom: 5px;
 }
 QTabBar::tab:!selected {
     margin-top: 2px;
@@ -2725,10 +2737,10 @@ if QtWidgets:
 
         def _build_ui(self):
             main_layout = QtWidgets.QVBoxLayout(self)
-            main_layout.setContentsMargins(7, 7, 7, 7)
-            main_layout.setSpacing(6)
+            main_layout.setContentsMargins(6, 6, 6, 6)
+            main_layout.setSpacing(5)
             header_layout = QtWidgets.QHBoxLayout()
-            header_layout.setSpacing(6)
+            header_layout.setSpacing(5)
             header_text_layout = QtWidgets.QVBoxLayout()
             header_text_layout.setSpacing(0)
             self.header_title = QtWidgets.QLabel(TOOL_NAME)
@@ -2768,6 +2780,8 @@ if QtWidgets:
             self.status_memo.setToolTip("This area shows the full Aminate run history for the current session.")
             main_layout.addWidget(self.status_memo, 1)
             footer_layout = QtWidgets.QHBoxLayout()
+            footer_layout.setContentsMargins(0, 0, 0, 0)
+            footer_layout.setSpacing(6)
             self.brand_label = QtWidgets.QLabel(
                 'Built by Amir. Follow Amir at <a href="{0}">followamir.com</a>.'.format(FOLLOW_AMIR_URL)
             )
@@ -2791,11 +2805,12 @@ if QtWidgets:
             frame = QtWidgets.QFrame()
             frame.setObjectName("mayaAnimWorkflowTabIntro")
             inner = QtWidgets.QVBoxLayout(frame)
-            inner.setContentsMargins(9, 7, 9, 7)
-            inner.setSpacing(3)
+            inner.setContentsMargins(8, 6, 8, 6)
+            inner.setSpacing(2)
             title = QtWidgets.QLabel(title_text)
             title.setObjectName("mayaAnimWorkflowIntroTitle")
             body = QtWidgets.QLabel(body_text)
+            body.setObjectName("mayaAnimWorkflowIntroBody")
             body.setWordWrap(True)
             inner.addWidget(title)
             inner.addWidget(body)
@@ -2805,9 +2820,9 @@ if QtWidgets:
             group = QtWidgets.QGroupBox("Actions")
             group.setToolTip("Main Aminate tools for cleaning scenes, mapping rigs, and fixing setup issues.")
             layout = QtWidgets.QVBoxLayout(group)
-            layout.setSpacing(6)
+            layout.setSpacing(5)
             marker_row = QtWidgets.QHBoxLayout()
-            marker_row.setSpacing(6)
+            marker_row.setSpacing(5)
             marker_label = QtWidgets.QLabel("Prop Marker Base Name")
             marker_label.setToolTip("Name prefix Aminate uses when renaming animated prop markers.")
             marker_row.addWidget(marker_label)
@@ -2817,23 +2832,23 @@ if QtWidgets:
             marker_row.addWidget(self.prop_marker_base_field, 1)
             layout.addLayout(marker_row)
             cleaner_grid = QtWidgets.QGridLayout()
-            cleaner_grid.setHorizontalSpacing(6)
-            cleaner_grid.setVerticalSpacing(5)
+            cleaner_grid.setHorizontalSpacing(5)
+            cleaner_grid.setVerticalSpacing(4)
             cleaner_grid.addWidget(self._action_button("Refresh", _on_refresh), 0, 0)
             cleaner_grid.addWidget(self._action_button("Scene Cleaner", self._run_scene_cleaner), 0, 1)
             cleaner_grid.addWidget(self._action_button("Delete Cameras", _on_clean_cameras), 0, 2)
             cleaner_grid.addWidget(self._action_button("Delete Markers", self._run_marker_cleanup), 0, 3)
             layout.addLayout(cleaner_grid)
             setup_grid = QtWidgets.QGridLayout()
-            setup_grid.setHorizontalSpacing(6)
-            setup_grid.setVerticalSpacing(5)
+            setup_grid.setHorizontalSpacing(5)
+            setup_grid.setVerticalSpacing(4)
             setup_grid.addWidget(self._action_button("Auto Map Skeleton", _on_auto_map), 0, 0)
             setup_grid.addWidget(self._action_button("Validate Character", _on_validate), 0, 1)
             setup_grid.addWidget(self._action_button("Body Part Mode", _on_body_part), 0, 2)
             setup_grid.addWidget(self._action_button("Full Body Mode", _on_full_body), 0, 3)
             layout.addLayout(setup_grid)
             history_row = QtWidgets.QHBoxLayout()
-            history_row.setSpacing(6)
+            history_row.setSpacing(5)
             history_row.addWidget(self._action_button("History Timeline", _on_history_timeline))
             history_row.addStretch(1)
             layout.addLayout(history_row)
@@ -2843,7 +2858,7 @@ if QtWidgets:
             group = QtWidgets.QGroupBox("Notes")
             group.setToolTip("Short simple notes about how Aminate handles markers and cleanup.")
             layout = QtWidgets.QVBoxLayout(group)
-            layout.setSpacing(4)
+            layout.setSpacing(3)
             hint = QtWidgets.QLabel(
                 "Default markers with translation or rotation keys are treated as prop markers. Scene Cleaner keeps them, renames them with your chosen base name, and only deletes non-animated junk markers."
             )
