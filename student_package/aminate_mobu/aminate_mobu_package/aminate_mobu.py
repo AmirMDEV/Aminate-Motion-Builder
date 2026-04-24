@@ -77,6 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
+QT_PANEL_BUILD_VERSION = 4
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -2588,6 +2589,26 @@ CONSTRAINT_PROPERTY_KEY_TERMS = (
 )
 
 
+USER_CONSTRAINT_KIND_TOKENS = (
+    "3points",
+    "threepoints",
+    "mapping",
+    "position",
+    "rotation",
+    "aim",
+    "multireferential",
+    "range",
+    "scale",
+    "chainik",
+    "parentchild",
+    "relation",
+    "splineik",
+    "expression",
+    "path",
+    "rigidbody",
+)
+
+
 CONSTRAINT_RECOMMENDATIONS = (
     "Parent/Position/Rotation: use for prop handoffs, weapon holds, temporary space switching, and dynamic parenting.",
     "Aim: use for eyes, cameras, look-at rigs, and any control that must point at a target.",
@@ -2626,14 +2647,44 @@ def _constraint_type_name(constraint):
     return type(constraint).__name__
 
 
+def _constraint_identifiers(constraint):
+    values = [
+        _constraint_type_name(constraint),
+        type(constraint).__name__,
+        _component_long_name(constraint),
+        _short_name_from_long_name(_component_long_name(constraint)),
+    ]
+    for attr in ("Name", "LongName", "ClassName", "ClassGroupName"):
+        value = getattr(constraint, attr, "")
+        try:
+            value = value() if callable(value) else value
+        except Exception:
+            value = ""
+        if value:
+            values.append(str(value))
+    return [_normalize_name(value) for value in values if value]
+
+
 def _is_system_constraint(constraint):
-    type_name = (_constraint_type_name(constraint) or "").lower()
-    name = (_component_long_name(constraint) or "").lower()
-    return "solver" in type_name or "hik" in type_name or "solver" in name
+    identifiers = _constraint_identifiers(constraint)
+    return any("solver" in item or "hik" in item or "character" in item for item in identifiers)
+
+
+def _is_user_facing_constraint(constraint):
+    try:
+        if not isinstance(constraint, FBConstraint):
+            return False
+    except Exception:
+        if "Constraint" not in type(constraint).__name__:
+            return False
+    if _is_system_constraint(constraint):
+        return False
+    identifiers = _constraint_identifiers(constraint)
+    return any(token in identifier for token in USER_CONSTRAINT_KIND_TOKENS for identifier in identifiers)
 
 
 def _actionable_constraints(constraints=None):
-    return [item for item in list(constraints if constraints is not None else _scene_constraints()) if not _is_system_constraint(item)]
+    return [item for item in list(constraints if constraints is not None else _scene_constraints()) if _is_user_facing_constraint(item)]
 
 
 def _constraint_target_summary(constraint):
@@ -2659,7 +2710,7 @@ def _constraint_target_summary(constraint):
 
 def constraint_rows():
     rows = []
-    for index, constraint in enumerate(_scene_constraints(), start=1):
+    for index, constraint in enumerate(_actionable_constraints(_scene_constraints()), start=1):
         rows.append({
             "index": index,
             "name": _short_name_from_long_name(_component_long_name(constraint)),
@@ -3892,7 +3943,7 @@ def _refresh_dashboard():
             len(prop_markers),
         ),
         "Skeleton Scope: {0}".format(selected_skeleton_scope_label()),
-        "Constraints: {0}".format(len(_scene_constraints())),
+        "Managed Constraints: {0}".format(len(_actionable_constraints(_scene_constraints()))),
         "Prop Marker Base Name: {0}".format(get_prop_marker_base_name()),
         "Current Scene: {0}".format(FBApplication().FBXFileName or "Untitled"),
         "",
@@ -4001,6 +4052,7 @@ if QtWidgets:
             super(AminateMobuPanel, self).__init__(parent)
             self.theme_key = set_active_theme(THEME_MODERN)
             self._collapsed = False
+            self._build_version = QT_PANEL_BUILD_VERSION
             self.setObjectName(QT_WINDOW_OBJECT_NAME)
             self.setMinimumSize(220, 260)
             self.resize(520, 640)
@@ -4531,6 +4583,7 @@ def launch_aminate_mobu():
                     or not hasattr(_QT_TOOL, "collapse_button")
                     or not hasattr(_QT_TOOL, "constraints_table")
                     or not hasattr(_QT_TOOL, "skeleton_scope_label")
+                    or getattr(_QT_TOOL, "_build_version", 0) != QT_PANEL_BUILD_VERSION
                 ):
                     try:
                         _QT_DOCK.close()
