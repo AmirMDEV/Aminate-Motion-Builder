@@ -3,6 +3,7 @@
 ## 2026-04-24
 
 - Improved Auto Map Skeleton with scored humanoid matching for common naming styles such as Unreal side suffixes, Mixamo/HIK-style aliases, Blender side markers, fingers, toes, twist bones, and existing-character remapping
+- Added Auto Map reporting plus a single-button `T-Pose Frame 1` action that sends the current characterized character to MotionBuilder stance pose at frame 1 and keys the pose there for mocap and mesh prep
 
 ## 2026-04-22
 

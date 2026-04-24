@@ -36,10 +36,13 @@ from pyfbsdk import (
     FBModelMarker,
     FBModelMarkerOptical,
     FBModelSkeleton,
+    FBPlayerControl,
     FBPopup,
     ShowTool,
     FBStringList,
     FBSystem,
+    FBTime,
+    FBTimeReferential,
     FBTextJustify,
     FBToolPossibleDockPosition,
 )
@@ -140,6 +143,7 @@ EASY_TOOLTIP_TEXT = {
     "Delete Cameras": "Delete user made cameras from the scene.",
     "Delete Markers": "Delete junk default markers and keep animated prop markers.",
     "Auto Map Skeleton": "Try to map the current skeleton into HumanIK from hips to fingers and feet.",
+    "T-Pose Frame 1": "Put the current character into MotionBuilder stance T-pose on frame 1 and key it there only.",
     "Validate Character": "Check whether the character setup is ready and warn about missing steps.",
     "Body Part Mode": "Switch the control rig into body part editing mode.",
     "Full Body Mode": "Switch the control rig into full body editing mode.",
@@ -2250,6 +2254,47 @@ def _property_first_src(prop):
         return None
 
 
+def _key_property_at_time(prop, time_value):
+    if prop is None:
+        return 0
+    try:
+        prop.SetAnimated(True)
+    except Exception:
+        pass
+    try:
+        prop.KeyAt(time_value)
+        return 1
+    except Exception:
+        pass
+    try:
+        node = prop.GetAnimationNode()
+    except Exception:
+        node = None
+    keyed = 0
+    for child in getattr(node, "Nodes", []) or []:
+        fcurve = getattr(child, "FCurve", None)
+        if fcurve is None:
+            try:
+                child.FCurve = child.CreateFCurve()
+                fcurve = child.FCurve
+            except Exception:
+                fcurve = None
+        if fcurve is None:
+            continue
+        try:
+            child.KeyAdd(time_value)
+            keyed += 1
+            continue
+        except Exception:
+            pass
+        try:
+            fcurve.KeyAdd(time_value)
+            keyed += 1
+        except Exception:
+            pass
+    return keyed
+
+
 def _character_summary(character):
     if character is None:
         return "Current Character: none"
@@ -2692,6 +2737,24 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
         "characterize_error": characterize_error,
         "control_rig_result": control_rig_result,
     }
+    report_lines = [
+        "Auto Map Report",
+        "Character: {0}".format(character.LongName),
+        "Namespace: {0}".format(namespace_label),
+        "Mapped slots: {0}".format(len(mapped)),
+        "Core links: {0}/{1}".format(_core_link_count(character), len(CORE_REQUIRED_LINKS)),
+        "Characterized: {0}".format(bool(character.GetCharacterize())),
+        "Control rig: {0}".format(bool(control_rig_result)),
+    ]
+    if characterize_error:
+        report_lines.append("MotionBuilder warnings: {0}".format(str(characterize_error).strip().replace("\n", " | ")))
+    missing_core = []
+    for slot_name in CORE_REQUIRED_LINKS:
+        if slot_name not in mapped:
+            missing_core.append(slot_name)
+    if missing_core:
+        report_lines.append("Missing core: {0}".format(", ".join(missing_core)))
+    _append_status("\n".join(report_lines))
     _append_status(
         "Auto Map mapped {0} from {1} with {2} mapped slot(s), core {3}/{4}. Characterized: {5}.".format(
             character.LongName,
@@ -2700,6 +2763,107 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
             _core_link_count(character),
             len(CORE_REQUIRED_LINKS),
             bool(character.GetCharacterize()),
+        )
+    )
+    return result
+
+
+def _current_character_or_error():
+    character = _current_character()
+    if character is None:
+        return None, {"ok": False, "error": "No current character."}
+    return character, None
+
+
+def _character_key_models(character):
+    models = OrderedDict()
+    if character is None:
+        return []
+    for body_node in FBBodyNodeId.values.values():
+        try:
+            model = character.GetCtrlRigModel(body_node)
+        except Exception:
+            model = None
+        if model is not None:
+            models.setdefault(_component_long_name(model), model)
+    if models:
+        return list(models.values())
+    for slot_name in CHARACTER_SLOT_CANDIDATES:
+        prop = character.PropertyList.Find(slot_name, False)
+        model = _property_first_src(prop)
+        if model is not None:
+            models.setdefault(_component_long_name(model), model)
+    return list(models.values())
+
+
+def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
+    character, error = _current_character_or_error()
+    if error:
+        _append_status(error["error"])
+        return error
+    if not character.GetCharacterize():
+        result = {"ok": False, "error": "Current character is not characterized. Auto Map Skeleton first."}
+        _append_status(result["error"])
+        return result
+
+    player = FBPlayerControl()
+    frame_one = FBTime(0, 0, 0, 1)
+    try:
+        player.Goto(frame_one, FBTimeReferential.kFBTimeReferentialEdit)
+    except Exception:
+        try:
+            player.Goto(frame_one)
+        except Exception:
+            pass
+    try:
+        character.GoToStancePose(True, True)
+    except Exception as exc:
+        try:
+            character.GoToStancePose()
+        except Exception:
+            result = {"ok": False, "error": "Could not send character to MotionBuilder stance T-pose: {0}".format(exc)}
+            _append_status(result["error"])
+            return result
+
+    keyed_models = 0
+    keyed_channels = 0
+    for model in _character_key_models(character):
+        if not key_control_rig and _component_long_name(model).find("_Ctrl:") >= 0:
+            continue
+        for prop_name in CONTROL_RIG_PROPERTY_NAMES:
+            keyed = _key_property_at_time(model.PropertyList.Find(prop_name), frame_one)
+            if keyed:
+                keyed_channels += keyed
+        keyed_models += 1
+    if key_skeleton:
+        for slot_name in CHARACTER_SLOT_CANDIDATES:
+            prop = character.PropertyList.Find(slot_name, False)
+            model = _property_first_src(prop)
+            if model is None:
+                continue
+            for prop_name in CONTROL_RIG_PROPERTY_NAMES:
+                keyed_channels += _key_property_at_time(model.PropertyList.Find(prop_name), frame_one)
+
+    try:
+        player.Goto(frame_one, FBTimeReferential.kFBTimeReferentialEdit)
+    except Exception:
+        try:
+            player.Goto(frame_one)
+        except Exception:
+            pass
+    result = {
+        "ok": True,
+        "character_name": character.LongName,
+        "frame": 1,
+        "keyed_models": keyed_models,
+        "keyed_channels": keyed_channels,
+        "characterized": bool(character.GetCharacterize()),
+    }
+    _append_status(
+        "T-Pose Frame 1 keyed {0}: MotionBuilder stance pose at frame 1 only, {1} model(s), {2} channel key(s).".format(
+            character.LongName,
+            keyed_models,
+            keyed_channels,
         )
     )
     return result
@@ -2908,6 +3072,11 @@ def _on_auto_map(control=None, event=None):
     _refresh_dashboard()
 
 
+def _on_tpose_frame_one(control=None, event=None):
+    make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True)
+    _refresh_dashboard()
+
+
 def _on_validate(control=None, event=None):
     validate_current_character()
     _refresh_dashboard()
@@ -3057,6 +3226,7 @@ if QtWidgets:
             setup_grid.addWidget(self._action_button("Validate Character", _on_validate), 0, 1)
             setup_grid.addWidget(self._action_button("Body Part Mode", _on_body_part), 0, 2)
             setup_grid.addWidget(self._action_button("Full Body Mode", _on_full_body), 0, 3)
+            setup_grid.addWidget(self._action_button("T-Pose Frame 1", _on_tpose_frame_one), 1, 0)
             layout.addLayout(setup_grid)
             history_row = QtWidgets.QHBoxLayout()
             history_row.setSpacing(5)
@@ -3181,6 +3351,7 @@ def _populate_tool_layout(tool):
     row = pyfbsdk_additions.FBHBoxLayout(FBAttachType.kFBAttachLeft)
     row.Add(_button("Auto Map Skeleton", _on_auto_map, color=(0.40, 0.24, 0.10)), 150)
     row.Add(_button("Validate Character", _on_validate, color=(0.26, 0.24, 0.40)), 150)
+    row.Add(_button("T-Pose Frame 1", _on_tpose_frame_one, color=(0.24, 0.34, 0.40)), 150)
     row.Add(_button("Body Part Mode", _on_body_part, color=(0.24, 0.34, 0.14)), 130)
     row.Add(_button("Full Body Mode", _on_full_body, color=(0.24, 0.34, 0.14)), 130)
     container.Add(row, 28)
@@ -3277,6 +3448,7 @@ __all__ = [
     "install_motionbuilder_startup",
     "install_runtime_watchers",
     "launch_aminate_mobu",
+    "make_tpose_on_frame_one",
     "maybe_warn_control_rig_mode",
     "maybe_warn_lock_definition",
     "remove_runtime_watchers",
