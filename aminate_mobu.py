@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import os
 import re
 import time
@@ -36,6 +37,7 @@ from pyfbsdk import (
     FBModelMarker,
     FBModelMarkerOptical,
     FBModelSkeleton,
+    FBModelTransformationType,
     FBPlayerControl,
     FBPopup,
     ShowTool,
@@ -45,6 +47,7 @@ from pyfbsdk import (
     FBTimeReferential,
     FBTextJustify,
     FBToolPossibleDockPosition,
+    FBVector3d,
 )
 import pyfbsdk_additions
 
@@ -2573,22 +2576,46 @@ def _unique_character_name(base_name):
         counter += 1
 
 
+def _unique_numbered_character_name(prefix):
+    existing = {_component_short_name(character) for character in FBSystem().Scene.Characters}
+    counter = 1
+    while True:
+        candidate = "{0}_{1}".format(prefix, counter)
+        if candidate not in existing:
+            return candidate
+        counter += 1
+
+
+def _is_animate_auto_character(character):
+    return _component_short_name(character).startswith("animate_auto_")
+
+
 def _is_aminate_generated_character(character):
-    return _component_short_name(character).startswith("AminateMobu_")
+    name = _component_short_name(character)
+    return name.startswith("AminateMobu_") or name.startswith("animate_auto_")
+
+
+def _rename_to_animate_auto(character):
+    if character is None or _is_animate_auto_character(character):
+        return character
+    new_name = _unique_numbered_character_name("animate_auto")
+    try:
+        character.Name = new_name
+    except Exception:
+        try:
+            character.LongName = new_name
+        except Exception:
+            pass
+    return character
 
 
 def _auto_map_target_character(namespace_label):
     current = _current_character()
-    scene_characters = list(FBSystem().Scene.Characters)
-    non_aminate_open = [
-        character for character in scene_characters if character is not None and not _is_aminate_generated_character(character)
-    ]
-    if current is not None:
-        if not _is_aminate_generated_character(current) or not non_aminate_open:
-            return current, False
-    if non_aminate_open:
-        return non_aminate_open[0], False
-    character_name = _unique_character_name("AminateMobu_{0}".format(namespace_label.replace(":", "_") or "Character"))
+    if current is not None and _is_animate_auto_character(current):
+        return current, False
+    if current is not None and _is_aminate_generated_character(current):
+        return _rename_to_animate_auto(current), False
+    character_name = _unique_numbered_character_name("animate_auto")
     return FBCharacter(character_name), True
 
 
@@ -3013,6 +3040,244 @@ def _character_key_models(character):
     return list(models.values())
 
 
+def _character_slot_model(character, slot_name):
+    if character is None:
+        return None
+    prop = character.PropertyList.Find(slot_name, False)
+    return _property_first_src(prop)
+
+
+def _model_world_vector(model, transform_type):
+    vector = FBVector3d()
+    try:
+        model.GetVector(vector, transform_type, True)
+        return (float(vector[0]), float(vector[1]), float(vector[2]))
+    except Exception:
+        return None
+
+
+def _model_world_translation(model):
+    return _model_world_vector(model, FBModelTransformationType.kModelTranslation)
+
+
+def _model_world_rotation(model):
+    return _model_world_vector(model, FBModelTransformationType.kModelRotation)
+
+
+def _set_model_world_rotation(model, rotation):
+    try:
+        model.SetVector(
+            FBVector3d(float(rotation[0]), float(rotation[1]), float(rotation[2])),
+            FBModelTransformationType.kModelRotation,
+            True,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _v_sub(left, right):
+    return (left[0] - right[0], left[1] - right[1], left[2] - right[2])
+
+
+def _v_mul(value, scale):
+    return (value[0] * scale, value[1] * scale, value[2] * scale)
+
+
+def _v_dot(left, right):
+    return left[0] * right[0] + left[1] * right[1] + left[2] * right[2]
+
+
+def _v_cross(left, right):
+    return (
+        left[1] * right[2] - left[2] * right[1],
+        left[2] * right[0] - left[0] * right[2],
+        left[0] * right[1] - left[1] * right[0],
+    )
+
+
+def _v_len(value):
+    return math.sqrt(max(_v_dot(value, value), 0.0))
+
+
+def _v_norm(value, fallback=None):
+    length = _v_len(value)
+    if length <= 0.000001:
+        return fallback
+    return (value[0] / length, value[1] / length, value[2] / length)
+
+
+def _quat_norm(quat):
+    length = math.sqrt(sum(item * item for item in quat))
+    if length <= 0.000001:
+        return (1.0, 0.0, 0.0, 0.0)
+    return tuple(item / length for item in quat)
+
+
+def _quat_mul(left, right):
+    lw, lx, ly, lz = left
+    rw, rx, ry, rz = right
+    return (
+        lw * rw - lx * rx - ly * ry - lz * rz,
+        lw * rx + lx * rw + ly * rz - lz * ry,
+        lw * ry - lx * rz + ly * rw + lz * rx,
+        lw * rz + lx * ry - ly * rx + lz * rw,
+    )
+
+
+def _quat_from_vectors(source, target):
+    source = _v_norm(source, (1.0, 0.0, 0.0))
+    target = _v_norm(target, (1.0, 0.0, 0.0))
+    dot = max(-1.0, min(1.0, _v_dot(source, target)))
+    if dot < -0.999999:
+        axis = _v_cross((1.0, 0.0, 0.0), source)
+        if _v_len(axis) <= 0.000001:
+            axis = _v_cross((0.0, 1.0, 0.0), source)
+        axis = _v_norm(axis, (0.0, 0.0, 1.0))
+        return (0.0, axis[0], axis[1], axis[2])
+    cross = _v_cross(source, target)
+    return _quat_norm((1.0 + dot, cross[0], cross[1], cross[2]))
+
+
+def _quat_from_euler(rotation):
+    x = math.radians(rotation[0]) * 0.5
+    y = math.radians(rotation[1]) * 0.5
+    z = math.radians(rotation[2]) * 0.5
+    cx, sx = math.cos(x), math.sin(x)
+    cy, sy = math.cos(y), math.sin(y)
+    cz, sz = math.cos(z), math.sin(z)
+    return _quat_norm((
+        cx * cy * cz + sx * sy * sz,
+        sx * cy * cz - cx * sy * sz,
+        cx * sy * cz + sx * cy * sz,
+        cx * cy * sz - sx * sy * cz,
+    ))
+
+
+def _euler_from_quat(quat):
+    w, x, y, z = _quat_norm(quat)
+    sinr = 2.0 * (w * x + y * z)
+    cosr = 1.0 - 2.0 * (x * x + y * y)
+    roll = math.atan2(sinr, cosr)
+    sinp = 2.0 * (w * y - z * x)
+    if abs(sinp) >= 1.0:
+        pitch = math.copysign(math.pi * 0.5, sinp)
+    else:
+        pitch = math.asin(sinp)
+    siny = 2.0 * (w * z + x * y)
+    cosy = 1.0 - 2.0 * (y * y + z * z)
+    yaw = math.atan2(siny, cosy)
+    return (math.degrees(roll), math.degrees(pitch), math.degrees(yaw))
+
+
+def _evaluate_scene():
+    try:
+        FBSystem().Scene.Evaluate()
+    except Exception:
+        pass
+
+
+def _align_model_segment(parent, child, desired_direction):
+    parent_pos = _model_world_translation(parent)
+    child_pos = _model_world_translation(child)
+    rotation = _model_world_rotation(parent)
+    desired = _v_norm(desired_direction)
+    if parent_pos is None or child_pos is None or rotation is None or desired is None:
+        return False
+    current = _v_norm(_v_sub(child_pos, parent_pos))
+    if current is None:
+        return False
+    delta = _quat_from_vectors(current, desired)
+    result = _quat_mul(delta, _quat_from_euler(rotation))
+    if not _set_model_world_rotation(parent, _euler_from_quat(result)):
+        return False
+    _evaluate_scene()
+    return True
+
+
+def _slot_pos(character, slot_name):
+    model = _character_slot_model(character, slot_name)
+    if model is None:
+        return None
+    return _model_world_translation(model)
+
+
+def _direction_between(character, start_slot, end_slot, fallback=None):
+    start = _slot_pos(character, start_slot)
+    end = _slot_pos(character, end_slot)
+    if start is None or end is None:
+        return fallback
+    return _v_norm(_v_sub(end, start), fallback)
+
+
+def _tpose_reference_axes(character):
+    up = (
+        _direction_between(character, "HipsLink", "HeadLink")
+        or _direction_between(character, "SpineLink", "HeadLink")
+        or (0.0, 1.0, 0.0)
+    )
+    left = (
+        _direction_between(character, "RightArmLink", "LeftArmLink")
+        or _direction_between(character, "RightShoulderLink", "LeftShoulderLink")
+        or _direction_between(character, "RightUpLegLink", "LeftUpLegLink")
+        or (1.0, 0.0, 0.0)
+    )
+    # Remove vertical drift so arms become a true horizontal T relative to the body.
+    left = _v_norm(_v_sub(left, _v_mul(up, _v_dot(left, up))), (1.0, 0.0, 0.0))
+    forward = _v_norm(_v_cross(left, up), (0.0, 0.0, 1.0))
+    left = _v_norm(_v_cross(up, forward), left)
+    return {
+        "up": up,
+        "down": _v_mul(up, -1.0),
+        "left": left,
+        "right": _v_mul(left, -1.0),
+    }
+
+
+def _align_tpose_chain(character, slots, direction):
+    aligned = 0
+    for parent_slot, child_slot in zip(slots, slots[1:]):
+        parent = _character_slot_model(character, parent_slot)
+        child = _character_slot_model(character, child_slot)
+        if parent is None or child is None:
+            continue
+        if _align_model_segment(parent, child, direction):
+            aligned += 1
+    return aligned
+
+
+def _apply_skeleton_tpose(character):
+    axes = _tpose_reference_axes(character)
+    aligned = 0
+    spine_slots = [
+        "HipsLink",
+        "SpineLink",
+        "Spine1Link",
+        "Spine2Link",
+        "Spine3Link",
+        "Spine4Link",
+        "Spine5Link",
+        "Spine6Link",
+        "Spine7Link",
+        "Spine8Link",
+        "Spine9Link",
+        "NeckLink",
+        "Neck1Link",
+        "Neck2Link",
+        "HeadLink",
+    ]
+    left_arm = ["LeftShoulderLink", "LeftArmLink", "LeftForeArmLink", "LeftHandLink"]
+    right_arm = ["RightShoulderLink", "RightArmLink", "RightForeArmLink", "RightHandLink"]
+    left_leg = ["LeftUpLegLink", "LeftLegLink", "LeftFootLink", "LeftToeBaseLink"]
+    right_leg = ["RightUpLegLink", "RightLegLink", "RightFootLink", "RightToeBaseLink"]
+    aligned += _align_tpose_chain(character, spine_slots, axes["up"])
+    aligned += _align_tpose_chain(character, left_arm, axes["left"])
+    aligned += _align_tpose_chain(character, right_arm, axes["right"])
+    aligned += _align_tpose_chain(character, left_leg, axes["down"])
+    aligned += _align_tpose_chain(character, right_leg, axes["down"])
+    return aligned
+
+
 def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
     character, error = _current_character_or_error()
     if error:
@@ -3032,15 +3297,16 @@ def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
             player.Goto(frame_one)
         except Exception:
             pass
+    stance_pose_ok = True
     try:
         character.GoToStancePose(True, True)
-    except Exception as exc:
+    except Exception:
         try:
             character.GoToStancePose()
         except Exception:
-            result = {"ok": False, "error": "Could not send character to MotionBuilder stance T-pose: {0}".format(exc)}
-            _append_status(result["error"])
-            return result
+            stance_pose_ok = False
+    _evaluate_scene()
+    aligned_segments = _apply_skeleton_tpose(character)
 
     keyed_models = 0
     keyed_channels = 0
@@ -3075,10 +3341,13 @@ def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
         "keyed_models": keyed_models,
         "keyed_channels": keyed_channels,
         "characterized": bool(character.GetCharacterize()),
+        "stance_pose_ok": bool(stance_pose_ok),
+        "aligned_segments": aligned_segments,
     }
     _append_status(
-        "T-Pose Frame 1 keyed {0}: MotionBuilder stance pose at frame 1 only, {1} model(s), {2} channel key(s).".format(
+        "T-Pose Frame 1 keyed {0}: skeleton T-pose at frame 1 only, {1} segment(s), {2} model(s), {3} channel key(s).".format(
             character.LongName,
+            aligned_segments,
             keyed_models,
             keyed_channels,
         )

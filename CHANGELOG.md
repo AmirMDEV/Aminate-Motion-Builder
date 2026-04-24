@@ -2,6 +2,7 @@
 
 ## 2026-04-24
 
+- Fixed `T-Pose Frame 1` for skeleton-mode characters by rotating mapped skeleton body segments into a calculated T-pose at frame 1, keying the skeleton channels, and naming Auto Map output as `animate_auto_1`, `animate_auto_2`, and so on
 - Improved Auto Map Skeleton with scored humanoid matching for common naming styles such as Unreal side suffixes, Mixamo/HIK-style aliases, Blender side markers, fingers, toes, twist bones, and existing-character remapping
 - Added Auto Map reporting plus a single-button `T-Pose Frame 1` action that sends the current characterized character to MotionBuilder stance pose at frame 1 and keys the pose there for mocap and mesh prep
 - Added a Definition Manager for saving, loading, renaming, deleting, and refreshing reusable character definition presets from inside Aminate Mobu
