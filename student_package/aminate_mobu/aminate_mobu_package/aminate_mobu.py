@@ -146,7 +146,9 @@ EASY_TOOLTIP_TEXT = {
     "Delete Cameras": "Delete user made cameras from the scene.",
     "Delete Markers": "Delete junk default markers and keep animated prop markers.",
     "Auto Map Skeleton": "Try to map the current skeleton into HumanIK from hips to fingers and feet.",
-    "T-Pose Frame 1": "Put the current character into MotionBuilder stance T-pose on frame 1 and key it there only.",
+    "T-Pose Frame 0": "Put the current character skeleton into a T-pose on frame 0 and key it there only.",
+    "Hide Panel": "Collapse Aminate into a thin side tab so it takes less space.",
+    "Show Panel": "Expand Aminate back into the full tool panel.",
     "Validate Character": "Check whether the character setup is ready and warn about missing steps.",
     "Body Part Mode": "Switch the control rig into body part editing mode.",
     "Full Body Mode": "Switch the control rig into full body editing mode.",
@@ -2250,7 +2252,26 @@ def _set_status_lines(lines):
         qt_memo.setPlainText("\n".join(_STATUS_LINES))
     qt_status = getattr(_QT_TOOL, "status_label", None)
     if qt_status is not None:
-        qt_status.setText(_STATUS_LINES[-1] if _STATUS_LINES else "Ready.")
+        qt_status.setText(_status_display_text(_STATUS_LINES[-1] if _STATUS_LINES else "Ready."))
+
+
+def _status_display_text(message):
+    text = str(message or "Ready.")
+    if any(item in text.lower() for item in ("error", "could not", "failed", "missing")):
+        return text
+    return u"\u2705 {0}".format(text)
+
+
+def _sanitize_motionbuilder_warning_text(text):
+    lines = []
+    for line in str(text or "").splitlines():
+        lower = line.lower()
+        if "doesn't seem to be parallel to the x axis" in lower:
+            continue
+        if "does not seem to be parallel to the x axis" in lower:
+            continue
+        lines.append(line)
+    return "\n".join(lines).strip()
 
 
 def _append_status(line):
@@ -2707,7 +2728,7 @@ def _current_definition_links(character):
 def save_current_character_definition(name=None):
     character, error = _current_character_or_error()
     if error:
-        _append_status(error["error"])
+        _append_status(_sanitize_motionbuilder_warning_text(error["error"]) or "Character definition needs cleanup.")
         return error
     definition_name = _sanitize_definition_name(name or _component_short_name(character))
     links = _current_definition_links(character)
@@ -2815,7 +2836,9 @@ def load_character_definition(name):
     if missing:
         lines.append("Missing slots: {0}".format(", ".join(missing[:12])))
     if characterize_error:
-        lines.append("MotionBuilder warnings: {0}".format(str(characterize_error).strip().replace("\n", " | ")))
+        clean_warning = _sanitize_motionbuilder_warning_text(characterize_error)
+        if clean_warning:
+            lines.append("MotionBuilder warnings: {0}".format(clean_warning.replace("\n", " | ")))
     _append_status("\n".join(lines))
     return result
 
@@ -2991,7 +3014,9 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
         "Control rig: {0}".format(bool(control_rig_result)),
     ]
     if characterize_error:
-        report_lines.append("MotionBuilder warnings: {0}".format(str(characterize_error).strip().replace("\n", " | ")))
+        clean_warning = _sanitize_motionbuilder_warning_text(characterize_error)
+        if clean_warning:
+            report_lines.append("MotionBuilder warnings: {0}".format(clean_warning.replace("\n", " | ")))
     missing_core = []
     for slot_name in CORE_REQUIRED_LINKS:
         if slot_name not in mapped:
@@ -3268,17 +3293,23 @@ def _apply_skeleton_tpose(character):
     ]
     left_arm = ["LeftShoulderLink", "LeftArmLink", "LeftForeArmLink", "LeftHandLink"]
     right_arm = ["RightShoulderLink", "RightArmLink", "RightForeArmLink", "RightHandLink"]
-    left_leg = ["LeftUpLegLink", "LeftLegLink", "LeftFootLink", "LeftToeBaseLink"]
-    right_leg = ["RightUpLegLink", "RightLegLink", "RightFootLink", "RightToeBaseLink"]
+    left_leg = ["LeftUpLegLink", "LeftLegLink", "LeftFootLink"]
+    right_leg = ["RightUpLegLink", "RightLegLink", "RightFootLink"]
     aligned += _align_tpose_chain(character, spine_slots, axes["up"])
     aligned += _align_tpose_chain(character, left_arm, axes["left"])
     aligned += _align_tpose_chain(character, right_arm, axes["right"])
     aligned += _align_tpose_chain(character, left_leg, axes["down"])
     aligned += _align_tpose_chain(character, right_leg, axes["down"])
+    for side, direction in (("Left", axes["left"]), ("Right", axes["right"])):
+        for finger in ("Thumb", "Index", "Middle", "Ring", "Pinky"):
+            slots = ["{0}HandLink".format(side)]
+            for index in range(1, 5):
+                slots.append("{0}Hand{1}{2}Link".format(side, finger, index))
+            aligned += _align_tpose_chain(character, slots, direction)
     return aligned
 
 
-def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
+def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
     character, error = _current_character_or_error()
     if error:
         _append_status(error["error"])
@@ -3289,22 +3320,14 @@ def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
         return result
 
     player = FBPlayerControl()
-    frame_one = FBTime(0, 0, 0, 1)
+    frame_zero = FBTime(0, 0, 0, 0)
     try:
-        player.Goto(frame_one, FBTimeReferential.kFBTimeReferentialEdit)
+        player.Goto(frame_zero, FBTimeReferential.kFBTimeReferentialEdit)
     except Exception:
         try:
-            player.Goto(frame_one)
+            player.Goto(frame_zero)
         except Exception:
             pass
-    stance_pose_ok = True
-    try:
-        character.GoToStancePose(True, True)
-    except Exception:
-        try:
-            character.GoToStancePose()
-        except Exception:
-            stance_pose_ok = False
     _evaluate_scene()
     aligned_segments = _apply_skeleton_tpose(character)
 
@@ -3314,7 +3337,7 @@ def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
         if not key_control_rig and _component_long_name(model).find("_Ctrl:") >= 0:
             continue
         for prop_name in CONTROL_RIG_PROPERTY_NAMES:
-            keyed = _key_property_at_time(model.PropertyList.Find(prop_name), frame_one)
+            keyed = _key_property_at_time(model.PropertyList.Find(prop_name), frame_zero)
             if keyed:
                 keyed_channels += keyed
         keyed_models += 1
@@ -3325,27 +3348,27 @@ def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
             if model is None:
                 continue
             for prop_name in CONTROL_RIG_PROPERTY_NAMES:
-                keyed_channels += _key_property_at_time(model.PropertyList.Find(prop_name), frame_one)
+                keyed_channels += _key_property_at_time(model.PropertyList.Find(prop_name), frame_zero)
 
     try:
-        player.Goto(frame_one, FBTimeReferential.kFBTimeReferentialEdit)
+        player.Goto(frame_zero, FBTimeReferential.kFBTimeReferentialEdit)
     except Exception:
         try:
-            player.Goto(frame_one)
+            player.Goto(frame_zero)
         except Exception:
             pass
     result = {
         "ok": True,
         "character_name": character.LongName,
-        "frame": 1,
+        "frame": 0,
         "keyed_models": keyed_models,
         "keyed_channels": keyed_channels,
         "characterized": bool(character.GetCharacterize()),
-        "stance_pose_ok": bool(stance_pose_ok),
+        "stance_pose_ok": False,
         "aligned_segments": aligned_segments,
     }
     _append_status(
-        "T-Pose Frame 1 keyed {0}: skeleton T-pose at frame 1 only, {1} segment(s), {2} model(s), {3} channel key(s).".format(
+        "T-Pose Frame 0 keyed {0}: skeleton T-pose at frame 0 only, {1} segment(s), {2} model(s), {3} channel key(s).".format(
             character.LongName,
             aligned_segments,
             keyed_models,
@@ -3353,6 +3376,10 @@ def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
         )
     )
     return result
+
+
+def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
+    return make_tpose_on_frame_zero(key_skeleton=key_skeleton, key_control_rig=key_control_rig)
 
 
 def validate_current_character():
@@ -3558,9 +3585,13 @@ def _on_auto_map(control=None, event=None):
     _refresh_dashboard()
 
 
-def _on_tpose_frame_one(control=None, event=None):
-    make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True)
+def _on_tpose_frame_zero(control=None, event=None):
+    make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True)
     _refresh_dashboard()
+
+
+def _on_tpose_frame_one(control=None, event=None):
+    _on_tpose_frame_zero(control, event)
 
 
 def _on_validate(control=None, event=None):
@@ -3590,10 +3621,11 @@ if QtWidgets:
     class AminateMobuPanel(QtWidgets.QWidget):
         def __init__(self, parent=None):
             super(AminateMobuPanel, self).__init__(parent)
-            self.theme_key = get_active_theme()
+            self.theme_key = set_active_theme(THEME_MODERN)
+            self._collapsed = False
             self.setObjectName(QT_WINDOW_OBJECT_NAME)
-            self.setMinimumSize(860, 560)
-            self.resize(920, 640)
+            self.setMinimumSize(220, 260)
+            self.resize(520, 640)
             self._build_ui()
             self._apply_theme(self.theme_key)
             try:
@@ -3626,26 +3658,35 @@ if QtWidgets:
             self.theme_button.setObjectName("aminateMobuThemeToggle")
             self.theme_button.clicked.connect(self._toggle_theme)
             header_layout.addWidget(self.theme_button)
+            self.collapse_button = QtWidgets.QPushButton("Hide Panel")
+            self.collapse_button.setToolTip("Collapse Aminate into a thin side panel.")
+            self.collapse_button.clicked.connect(self._toggle_collapsed)
+            header_layout.addWidget(self.collapse_button)
             main_layout.addLayout(header_layout)
-            main_layout.addWidget(
+            self.body_container = QtWidgets.QWidget()
+            self.body_container.setObjectName("aminateMobuBodyContainer")
+            body_layout = QtWidgets.QVBoxLayout(self.body_container)
+            body_layout.setContentsMargins(0, 0, 0, 0)
+            body_layout.setSpacing(5)
+            body_layout.addWidget(
                 self._build_intro_card(
                     "What This Tool Helps With",
                     "MotionBuilder companion for Aminate Maya. Clean scene junk, auto-map skeletons into HumanIK, warn before incomplete character setup, and launch full-scene History Timeline snapshots.",
                 )
             )
-            main_layout.addWidget(self._build_actions_group())
-            main_layout.addWidget(self._build_definition_manager_group())
-            main_layout.addWidget(self._build_note_group())
+            body_layout.addWidget(self._build_actions_group())
+            body_layout.addWidget(self._build_definition_manager_group())
+            body_layout.addWidget(self._build_note_group())
             self.status_label = QtWidgets.QLabel("Ready.")
             self.status_label.setObjectName("mayaAnimWorkflowStatusLabel")
             self.status_label.setWordWrap(True)
             self.status_label.setToolTip("This line shows the newest Aminate status message.")
-            main_layout.addWidget(self.status_label)
+            body_layout.addWidget(self.status_label)
             self.status_memo = QtWidgets.QPlainTextEdit()
             self.status_memo.setReadOnly(True)
             self.status_memo.setObjectName("aminateMobuStatusMemo")
             self.status_memo.setToolTip("This area shows the full Aminate run history for the current session.")
-            main_layout.addWidget(self.status_memo, 1)
+            body_layout.addWidget(self.status_memo, 1)
             footer_layout = QtWidgets.QHBoxLayout()
             footer_layout.setContentsMargins(0, 0, 0, 0)
             footer_layout.setSpacing(6)
@@ -3666,7 +3707,13 @@ if QtWidgets:
             self.donate_button.setToolTip("Open Amir's PayPal donate link. Set AMIR_PAYPAL_DONATE_URL or AMIR_DONATE_URL to customize it.")
             self.donate_button.clicked.connect(self._open_donate_url)
             footer_layout.addWidget(self.donate_button)
-            main_layout.addLayout(footer_layout)
+            body_layout.addLayout(footer_layout)
+            self.scroll_area = QtWidgets.QScrollArea()
+            self.scroll_area.setObjectName("aminateMobuScrollArea")
+            self.scroll_area.setWidgetResizable(True)
+            self.scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+            self.scroll_area.setWidget(self.body_container)
+            main_layout.addWidget(self.scroll_area, 1)
 
         def _build_intro_card(self, title_text, body_text):
             frame = QtWidgets.QFrame()
@@ -3713,7 +3760,7 @@ if QtWidgets:
             setup_grid.addWidget(self._action_button("Validate Character", _on_validate), 0, 1)
             setup_grid.addWidget(self._action_button("Body Part Mode", _on_body_part), 0, 2)
             setup_grid.addWidget(self._action_button("Full Body Mode", _on_full_body), 0, 3)
-            setup_grid.addWidget(self._action_button("T-Pose Frame 1", _on_tpose_frame_one), 1, 0)
+            setup_grid.addWidget(self._action_button("T-Pose Frame 0", _on_tpose_frame_zero), 1, 0)
             layout.addLayout(setup_grid)
             history_row = QtWidgets.QHBoxLayout()
             history_row.setSpacing(5)
@@ -3793,6 +3840,23 @@ if QtWidgets:
             self._apply_theme(_other_theme(self.theme_key))
             _append_status("Theme switched to {0}.".format(_theme_label(self.theme_key)))
             _refresh_dashboard()
+
+        def _toggle_collapsed(self):
+            self._collapsed = not self._collapsed
+            self.scroll_area.setVisible(not self._collapsed)
+            self.header_subtitle.setVisible(not self._collapsed)
+            self.theme_badge.setVisible(not self._collapsed)
+            self.theme_button.setVisible(not self._collapsed)
+            if self._collapsed:
+                self.collapse_button.setText("Show Panel")
+                self.collapse_button.setToolTip("Expand Aminate back into the full panel.")
+                self.setMinimumWidth(150)
+                self.resize(150, max(self.height(), 260))
+            else:
+                self.collapse_button.setText("Hide Panel")
+                self.collapse_button.setToolTip("Collapse Aminate into a thin side panel.")
+                self.setMinimumWidth(220)
+                self.resize(max(self.width(), 420), max(self.height(), 520))
 
         def _cleaner_base_name(self):
             return set_prop_marker_base_name(getattr(self, "prop_marker_base_field", None).text() if getattr(self, "prop_marker_base_field", None) is not None else get_prop_marker_base_name())
@@ -3918,7 +3982,7 @@ def _populate_tool_layout(tool):
     row = pyfbsdk_additions.FBHBoxLayout(FBAttachType.kFBAttachLeft)
     row.Add(_button("Auto Map Skeleton", _on_auto_map, color=(0.40, 0.24, 0.10)), 150)
     row.Add(_button("Validate Character", _on_validate, color=(0.26, 0.24, 0.40)), 150)
-    row.Add(_button("T-Pose Frame 1", _on_tpose_frame_one, color=(0.24, 0.34, 0.40)), 150)
+    row.Add(_button("T-Pose Frame 0", _on_tpose_frame_zero, color=(0.24, 0.34, 0.40)), 150)
     row.Add(_button("Body Part Mode", _on_body_part, color=(0.24, 0.34, 0.14)), 130)
     row.Add(_button("Full Body Mode", _on_full_body, color=(0.24, 0.34, 0.14)), 130)
     container.Add(row, 28)
@@ -3941,6 +4005,7 @@ def launch_aminate_mobu():
     global _QT_TOOL
     global _QT_DOCK
     global _TOOL
+    set_active_theme(THEME_MODERN)
     install_runtime_watchers()
     ensure_default_ui_snapshot()
     _ensure_aminate_launcher_toolbar()
@@ -3952,6 +4017,17 @@ def launch_aminate_mobu():
                 _QT_DOCK = existing_docks[-1]
                 _close_duplicate_aminate_mobu_docks(keep_dock=_QT_DOCK)
                 _QT_TOOL = getattr(_QT_DOCK, "panel", None)
+                if _QT_TOOL is None or not hasattr(_QT_TOOL, "collapse_button"):
+                    try:
+                        _QT_DOCK.close()
+                    except Exception:
+                        pass
+                    try:
+                        _QT_DOCK.deleteLater()
+                    except Exception:
+                        pass
+                    _QT_DOCK = None
+                    _QT_TOOL = None
         if _QT_DOCK is None:
             main = _qt_host_main_window()
             _QT_DOCK = AminateMobuDockWidget(parent=main)
@@ -4015,6 +4091,7 @@ __all__ = [
     "install_motionbuilder_startup",
     "install_runtime_watchers",
     "launch_aminate_mobu",
+    "make_tpose_on_frame_zero",
     "make_tpose_on_frame_one",
     "maybe_warn_control_rig_mode",
     "maybe_warn_lock_definition",

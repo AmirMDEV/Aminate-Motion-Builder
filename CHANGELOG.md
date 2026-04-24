@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-25
+
+- Moved the automatic skeleton T-pose to frame 0, stopped rotating feet through toe links, added finger alignment, added green-check status feedback, made Aminate open in Modern by default, and added a collapsible scrollable dock panel for smaller resize widths
+
 ## 2026-04-24
 
 - Fixed `T-Pose Frame 1` for skeleton-mode characters by rotating mapped skeleton body segments into a calculated T-pose at frame 1, keying the skeleton channels, and naming Auto Map output as `animate_auto_1`, `animate_auto_2`, and so on
