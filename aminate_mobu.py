@@ -148,6 +148,12 @@ EASY_TOOLTIP_TEXT = {
     "Body Part Mode": "Switch the control rig into body part editing mode.",
     "Full Body Mode": "Switch the control rig into full body editing mode.",
     "History Timeline": "Open the History Timeline tool for full scene snapshot branches.",
+    "Definition Manager": "Save and reload character definition presets.",
+    "Refresh Definitions": "Reload the saved definition preset list.",
+    "Save Definition": "Save the current character definition links as a reusable preset.",
+    "Load Definition": "Load the selected definition preset onto the current character.",
+    "Rename Definition": "Rename the selected definition preset using the name field.",
+    "Delete Definition": "Delete the selected saved definition preset.",
     "Donate": "Open Amir's PayPal donation page.",
     "Theme": "Shows which Aminate theme is active right now.",
     "Ready.": "This line shows the latest Aminate status message.",
@@ -968,6 +974,16 @@ def _safe_caption(text):
 
 def _module_root_dir():
     return os.path.dirname(os.path.abspath(__file__))
+
+
+def _user_data_dir():
+    path = os.path.join(os.path.expanduser("~"), "Documents", "MB", "AminateMobu")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _definition_store_path():
+    return os.path.join(_user_data_dir(), "character_definitions.json")
 
 
 def _default_ui_snapshot_path():
@@ -2615,6 +2631,207 @@ def _map_model_to_slot(character, slot_name, model, replace_existing=True):
             return False
 
 
+def _definition_store_load():
+    path = _definition_store_path()
+    if not os.path.isfile(path):
+        return {"version": 1, "definitions": OrderedDict()}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle, object_pairs_hook=OrderedDict)
+    except Exception:
+        return {"version": 1, "definitions": OrderedDict()}
+    definitions = payload.get("definitions")
+    if not isinstance(definitions, dict):
+        definitions = OrderedDict()
+    payload["definitions"] = OrderedDict(definitions)
+    payload["version"] = int(payload.get("version", 1) or 1)
+    return payload
+
+
+def _definition_store_save(payload):
+    path = _definition_store_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+    return path
+
+
+def _definition_names():
+    return list(_definition_store_load().get("definitions", {}).keys())
+
+
+def _sanitize_definition_name(name):
+    cleaned = re.sub(r"\s+", " ", str(name or "").strip())
+    return cleaned or "Character Definition"
+
+
+def _current_definition_links(character):
+    links = OrderedDict()
+    if character is None:
+        return links
+    for slot_name in CHARACTER_SLOT_CANDIDATES:
+        prop = character.PropertyList.Find(slot_name, False)
+        model = _property_first_src(prop)
+        if model is not None:
+            links[slot_name] = _component_long_name(model)
+    return links
+
+
+def save_current_character_definition(name=None):
+    character, error = _current_character_or_error()
+    if error:
+        _append_status(error["error"])
+        return error
+    definition_name = _sanitize_definition_name(name or _component_short_name(character))
+    links = _current_definition_links(character)
+    if not links:
+        result = {"ok": False, "error": "Current character has no definition links to save."}
+        _append_status(result["error"])
+        return result
+    payload = _definition_store_load()
+    payload.setdefault("definitions", OrderedDict())
+    payload["definitions"][definition_name] = OrderedDict([
+        ("name", definition_name),
+        ("saved_at", time.strftime("%Y-%m-%d %H:%M:%S")),
+        ("source_character", character.LongName),
+        ("characterized", bool(character.GetCharacterize())),
+        ("core_link_count", _core_link_count(character)),
+        ("links", links),
+    ])
+    path = _definition_store_save(payload)
+    result = {
+        "ok": True,
+        "name": definition_name,
+        "path": path,
+        "link_count": len(links),
+        "core_link_count": _core_link_count(character),
+    }
+    _append_status("Saved definition {0}: {1} link(s), core {2}/{3}.".format(definition_name, len(links), _core_link_count(character), len(CORE_REQUIRED_LINKS)))
+    return result
+
+
+def _find_definition_model(saved_name, slot_name, indexed):
+    if saved_name:
+        exact = FBFindModelByLabelName(saved_name)
+        if exact is not None:
+            return exact
+        short_name = _short_name_from_long_name(saved_name)
+        exact = FBFindModelByLabelName(short_name)
+        if exact is not None:
+            return exact
+        normalized = _normalize_name(short_name)
+        model = indexed.get(normalized)
+        if model is not None:
+            return model
+    return _slot_match_for_index(slot_name, indexed)
+
+
+def load_character_definition(name):
+    definition_name = _sanitize_definition_name(name)
+    payload = _definition_store_load()
+    definition = payload.get("definitions", {}).get(definition_name)
+    if not definition:
+        result = {"ok": False, "error": "Definition not found: {0}".format(definition_name)}
+        _append_status(result["error"])
+        return result
+    links = definition.get("links") or {}
+    character, error = _current_character_or_error()
+    if error:
+        namespace_label = definition.get("namespace", "Scene")
+        character, _created = _auto_map_target_character(namespace_label)
+    FBApplication().CurrentCharacter = character
+    was_characterized = bool(character.GetCharacterize())
+    if was_characterized:
+        try:
+            character.SetCharacterizeOn(False)
+        except Exception:
+            pass
+    namespace, indexed, _score = find_best_skeleton_namespace()
+    mapped = OrderedDict()
+    missing = []
+    used_models = set()
+    for slot_name, saved_model_name in links.items():
+        model = _find_definition_model(saved_model_name, slot_name, indexed)
+        if model is None or _component_long_name(model) in used_models:
+            missing.append(slot_name)
+            continue
+        if _map_model_to_slot(character, slot_name, model):
+            model_name = _component_long_name(model)
+            mapped[slot_name] = model_name
+            used_models.add(model_name)
+    characterize_result = False
+    characterize_error = ""
+    try:
+        characterize_result = bool(character.SetCharacterizeOn(True))
+        characterize_error = character.GetCharacterizeError()
+    except Exception as exc:
+        characterize_error = str(exc)
+    result = {
+        "ok": True,
+        "name": definition_name,
+        "character_name": character.LongName,
+        "namespace": namespace,
+        "mapped_count": len(mapped),
+        "missing": missing,
+        "core_link_count": _core_link_count(character),
+        "characterized": bool(character.GetCharacterize()),
+        "characterize_result": characterize_result,
+        "characterize_error": characterize_error,
+    }
+    lines = [
+        "Loaded definition {0}".format(definition_name),
+        "Character: {0}".format(character.LongName),
+        "Mapped slots: {0}".format(len(mapped)),
+        "Core links: {0}/{1}".format(_core_link_count(character), len(CORE_REQUIRED_LINKS)),
+        "Characterized: {0}".format(bool(character.GetCharacterize())),
+    ]
+    if missing:
+        lines.append("Missing slots: {0}".format(", ".join(missing[:12])))
+    if characterize_error:
+        lines.append("MotionBuilder warnings: {0}".format(str(characterize_error).strip().replace("\n", " | ")))
+    _append_status("\n".join(lines))
+    return result
+
+
+def rename_character_definition(old_name, new_name):
+    old_name = _sanitize_definition_name(old_name)
+    new_name = _sanitize_definition_name(new_name)
+    payload = _definition_store_load()
+    definitions = payload.get("definitions", OrderedDict())
+    if old_name not in definitions:
+        result = {"ok": False, "error": "Definition not found: {0}".format(old_name)}
+        _append_status(result["error"])
+        return result
+    if new_name in definitions and new_name != old_name:
+        result = {"ok": False, "error": "Definition already exists: {0}".format(new_name)}
+        _append_status(result["error"])
+        return result
+    definition = definitions.pop(old_name)
+    definition["name"] = new_name
+    definitions[new_name] = definition
+    payload["definitions"] = definitions
+    _definition_store_save(payload)
+    result = {"ok": True, "old_name": old_name, "new_name": new_name}
+    _append_status("Renamed definition {0} to {1}.".format(old_name, new_name))
+    return result
+
+
+def delete_character_definition(name):
+    definition_name = _sanitize_definition_name(name)
+    payload = _definition_store_load()
+    definitions = payload.get("definitions", OrderedDict())
+    if definition_name not in definitions:
+        result = {"ok": False, "error": "Definition not found: {0}".format(definition_name)}
+        _append_status(result["error"])
+        return result
+    definitions.pop(definition_name)
+    payload["definitions"] = definitions
+    _definition_store_save(payload)
+    result = {"ok": True, "name": definition_name}
+    _append_status("Deleted definition {0}.".format(definition_name))
+    return result
+
+
 def _core_link_count(character):
     count = 0
     for slot_name in CORE_REQUIRED_LINKS:
@@ -3148,6 +3365,7 @@ if QtWidgets:
                 )
             )
             main_layout.addWidget(self._build_actions_group())
+            main_layout.addWidget(self._build_definition_manager_group())
             main_layout.addWidget(self._build_note_group())
             self.status_label = QtWidgets.QLabel("Ready.")
             self.status_label.setObjectName("mayaAnimWorkflowStatusLabel")
@@ -3235,6 +3453,39 @@ if QtWidgets:
             layout.addLayout(history_row)
             return group
 
+        def _build_definition_manager_group(self):
+            group = QtWidgets.QGroupBox("Definition Manager")
+            group.setToolTip("Save, load, rename, and delete quick character definition presets.")
+            layout = QtWidgets.QVBoxLayout(group)
+            layout.setSpacing(5)
+
+            selector_row = QtWidgets.QHBoxLayout()
+            selector_row.setSpacing(5)
+            self.definition_combo = QtWidgets.QComboBox()
+            self.definition_combo.setToolTip("Pick a saved character definition preset.")
+            selector_row.addWidget(self.definition_combo, 1)
+            selector_row.addWidget(self._action_button("Refresh Definitions", self._refresh_definition_manager))
+            layout.addLayout(selector_row)
+
+            name_row = QtWidgets.QHBoxLayout()
+            name_row.setSpacing(5)
+            self.definition_name_field = QtWidgets.QLineEdit()
+            self.definition_name_field.setPlaceholderText("Definition name")
+            self.definition_name_field.setToolTip("Name used when saving or renaming a definition preset.")
+            name_row.addWidget(self.definition_name_field, 1)
+            layout.addLayout(name_row)
+
+            button_grid = QtWidgets.QGridLayout()
+            button_grid.setHorizontalSpacing(5)
+            button_grid.setVerticalSpacing(4)
+            button_grid.addWidget(self._action_button("Save Definition", self._save_definition), 0, 0)
+            button_grid.addWidget(self._action_button("Load Definition", self._load_definition), 0, 1)
+            button_grid.addWidget(self._action_button("Rename Definition", self._rename_definition), 0, 2)
+            button_grid.addWidget(self._action_button("Delete Definition", self._delete_definition), 0, 3)
+            layout.addLayout(button_grid)
+            self._refresh_definition_manager()
+            return group
+
         def _build_note_group(self):
             group = QtWidgets.QGroupBox("Notes")
             group.setToolTip("Short simple notes about how Aminate handles markers and cleanup.")
@@ -3282,6 +3533,53 @@ if QtWidgets:
 
         def _run_marker_cleanup(self):
             _on_clean_markers(prop_marker_base_name=self._cleaner_base_name())
+
+        def _selected_definition_name(self):
+            combo = getattr(self, "definition_combo", None)
+            if combo is not None and combo.currentText():
+                return combo.currentText()
+            return getattr(self, "definition_name_field", None).text() if getattr(self, "definition_name_field", None) is not None else ""
+
+        def _refresh_definition_manager(self):
+            combo = getattr(self, "definition_combo", None)
+            if combo is None:
+                return
+            current = combo.currentText()
+            combo.blockSignals(True)
+            combo.clear()
+            names = _definition_names()
+            combo.addItems(names)
+            if current in names:
+                combo.setCurrentText(current)
+            combo.blockSignals(False)
+            if getattr(self, "definition_name_field", None) is not None and combo.currentText():
+                self.definition_name_field.setText(combo.currentText())
+
+        def _save_definition(self):
+            name = getattr(self, "definition_name_field", None).text() if getattr(self, "definition_name_field", None) is not None else ""
+            result = save_current_character_definition(name)
+            self._refresh_definition_manager()
+            if result.get("ok") and getattr(self, "definition_combo", None) is not None:
+                self.definition_combo.setCurrentText(result.get("name", ""))
+            _refresh_dashboard()
+
+        def _load_definition(self):
+            load_character_definition(self._selected_definition_name())
+            _refresh_dashboard()
+
+        def _rename_definition(self):
+            old_name = self._selected_definition_name()
+            new_name = getattr(self, "definition_name_field", None).text() if getattr(self, "definition_name_field", None) is not None else ""
+            result = rename_character_definition(old_name, new_name)
+            self._refresh_definition_manager()
+            if result.get("ok") and getattr(self, "definition_combo", None) is not None:
+                self.definition_combo.setCurrentText(result.get("new_name", ""))
+            _refresh_dashboard()
+
+        def _delete_definition(self):
+            delete_character_definition(self._selected_definition_name())
+            self._refresh_definition_manager()
+            _refresh_dashboard()
 
         def _open_follow_url(self, url=None):
             if _open_external_url(url or FOLLOW_AMIR_URL):
