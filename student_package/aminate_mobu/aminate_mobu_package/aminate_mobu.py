@@ -150,6 +150,7 @@ EASY_TOOLTIP_TEXT = {
     "Delete Cameras": "Delete user made cameras from the scene.",
     "Delete Markers": "Delete junk default markers and keep animated prop markers.",
     "Auto Map Skeleton": "Try to map the current skeleton into HumanIK from hips to fingers and feet.",
+    "Use Selected Skeleton": "Select any bone in the skeleton first, then lock Aminate to that skeleton hierarchy.",
     "T-Pose Frame 0": "Put the current character skeleton into a T-pose on frame 0 and key it there only.",
     "Hide Panel": "Collapse Aminate into a thin side tab so it takes less space.",
     "Show Panel": "Expand Aminate back into the full tool panel.",
@@ -970,6 +971,7 @@ _WARNING_HISTORY = []
 _STATUS_LINES = []
 _CALLBACKS_INSTALLED = False
 _PROP_MARKER_BASE_NAME = DEFAULT_PROP_MARKER_BASE_NAME
+_SKELETON_SCOPE_ROOT_NAME = ""
 _ACTIVE_THEME = DEFAULT_THEME_KEY
 _APP_THEME_BASELINE = None
 _APP_THEME_OWNED = False
@@ -2385,6 +2387,115 @@ def _scene_skeletons(namespace=None):
     return output
 
 
+def _model_parent(model):
+    try:
+        return model.Parent
+    except Exception:
+        return None
+
+
+def _model_children(model):
+    try:
+        return list(model.Children)
+    except Exception:
+        return []
+
+
+def _skeleton_root(model):
+    if model is None:
+        return None
+    root = model
+    parent = _model_parent(root)
+    while isinstance(parent, FBModelSkeleton):
+        root = parent
+        parent = _model_parent(root)
+    return root
+
+
+def _skeleton_descendants(root):
+    if root is None:
+        return []
+    output = []
+    stack = [root]
+    seen = set()
+    while stack:
+        model = stack.pop(0)
+        key = _component_long_name(model)
+        if key in seen:
+            continue
+        seen.add(key)
+        if isinstance(model, FBModelSkeleton):
+            output.append(model)
+        for child in _model_children(model):
+            if isinstance(child, FBModelSkeleton):
+                stack.append(child)
+    return output
+
+
+def _is_model_in_skeleton_scope(model, root_name=None):
+    root_name = root_name if root_name is not None else _SKELETON_SCOPE_ROOT_NAME
+    if not model or not root_name:
+        return False
+    root = _skeleton_root(model)
+    return bool(root and _component_long_name(root) == root_name)
+
+
+def selected_skeleton_scope_label():
+    if not _SKELETON_SCOPE_ROOT_NAME:
+        return "No skeleton selected"
+    return _short_name_from_long_name(_SKELETON_SCOPE_ROOT_NAME)
+
+
+def set_selected_skeleton_scope_from_selection():
+    global _SKELETON_SCOPE_ROOT_NAME
+    for model in _selected_models():
+        if isinstance(model, FBModelSkeleton):
+            root = _skeleton_root(model)
+            if root is not None:
+                _SKELETON_SCOPE_ROOT_NAME = _component_long_name(root)
+                _append_status("Selected skeleton scope: {0}.".format(selected_skeleton_scope_label()))
+                return {"ok": True, "root": _SKELETON_SCOPE_ROOT_NAME, "label": selected_skeleton_scope_label()}
+    result = {"ok": False, "error": "Select any bone in the skeleton first."}
+    _append_status(result["error"])
+    return result
+
+
+def _scoped_skeletons(namespace=None):
+    if _SKELETON_SCOPE_ROOT_NAME:
+        root = FBFindModelByLabelName(_SKELETON_SCOPE_ROOT_NAME) or FBFindModelByLabelName(selected_skeleton_scope_label())
+        if root is not None:
+            models = _skeleton_descendants(root)
+            if namespace:
+                models = [model for model in models if _namespace_from_long_name(model.LongName) == namespace]
+            return models
+    return _scene_skeletons(namespace=namespace)
+
+
+def _skeleton_roots():
+    roots = OrderedDict()
+    for model in _scene_skeletons():
+        root = _skeleton_root(model)
+        if root is not None:
+            roots.setdefault(_component_long_name(root), root)
+    return list(roots.values())
+
+
+def _require_skeleton_scope_if_needed():
+    global _SKELETON_SCOPE_ROOT_NAME
+    if _SKELETON_SCOPE_ROOT_NAME:
+        return None
+    roots = _skeleton_roots()
+    if len(roots) > 1:
+        return {
+            "ok": False,
+            "error": "Multiple skeletons found. Select a bone, click Use Selected Skeleton, then run Auto Map or T-Pose.",
+            "root_count": len(roots),
+    }
+    if len(roots) == 1:
+        _SKELETON_SCOPE_ROOT_NAME = _component_long_name(roots[0])
+    return None
+
+
 def _scene_markers():
     return _scene_models(lambda item: isinstance(item, (FBModelMarker, FBModelMarkerOptical)))
 
@@ -2718,6 +2829,10 @@ def run_scene_cleaner(delete_cameras=True, delete_unlabelled_markers=True, prop_
 
 
 def _candidate_namespace_from_selection():
+    if _SKELETON_SCOPE_ROOT_NAME:
+        root = FBFindModelByLabelName(_SKELETON_SCOPE_ROOT_NAME) or FBFindModelByLabelName(selected_skeleton_scope_label())
+        if root is not None:
+            return _namespace_from_long_name(root.LongName)
     for model in _selected_models():
         if isinstance(model, FBModelSkeleton):
             return _namespace_from_long_name(model.LongName)
@@ -2726,7 +2841,7 @@ def _candidate_namespace_from_selection():
 
 def _index_namespace_skeletons(namespace):
     indexed = OrderedDict()
-    for model in _scene_skeletons(namespace=namespace):
+    for model in _scoped_skeletons(namespace=namespace):
         short_name = _short_name_from_long_name(model.LongName)
         if _is_dummy_name(short_name):
             continue
@@ -2762,7 +2877,7 @@ def _slot_score_for_index(slot_name, indexed):
 
 def _available_namespaces():
     namespaces = OrderedDict()
-    for model in _scene_skeletons():
+    for model in _scoped_skeletons():
         namespaces.setdefault(_namespace_from_long_name(model.LongName), True)
     return list(namespaces.keys())
 
@@ -3152,6 +3267,10 @@ def maybe_warn_control_rig_mode(character, model, property_name):
 
 
 def auto_map_character(create_control_rig=True, characterize=True, activate_input=False):
+    scope_error = _require_skeleton_scope_if_needed()
+    if scope_error:
+        _append_status(scope_error["error"])
+        return scope_error
     namespace, indexed, score = find_best_skeleton_namespace()
     if score <= 0:
         result = {"ok": False, "error": "No usable skeleton namespace found.", "namespace": namespace}
@@ -3199,6 +3318,7 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
     result = {
         "ok": True,
         "namespace": namespace,
+        "skeleton_scope": selected_skeleton_scope_label(),
         "score": score,
         "character_name": character.LongName,
         "character_created": bool(character_created),
@@ -3215,6 +3335,7 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
         "Auto Map Report",
         "Character: {0}".format(character.LongName),
         "Namespace: {0}".format(namespace_label),
+        "Skeleton scope: {0}".format(selected_skeleton_scope_label()),
         "Mapped slots: {0}".format(len(mapped)),
         "Core links: {0}/{1}".format(_core_link_count(character), len(CORE_REQUIRED_LINKS)),
         "Characterized: {0}".format(bool(character.GetCharacterize())),
@@ -3249,6 +3370,35 @@ def _current_character_or_error():
     if character is None:
         return None, {"ok": False, "error": "No current character."}
     return character, None
+
+
+def _character_matches_skeleton_scope(character):
+    if character is None or not _SKELETON_SCOPE_ROOT_NAME:
+        return True
+    for slot_name in CORE_REQUIRED_LINKS:
+        model = _character_slot_model(character, slot_name)
+        if model is not None and _is_model_in_skeleton_scope(model):
+            return True
+    return False
+
+
+def _scoped_character_or_error():
+    scope_error = _require_skeleton_scope_if_needed()
+    if scope_error:
+        return None, scope_error
+    current = _current_character()
+    if _character_matches_skeleton_scope(current):
+        if current is None:
+            return None, {"ok": False, "error": "No current character."}
+        return current, None
+    for character in FBSystem().Scene.Characters:
+        if _character_matches_skeleton_scope(character):
+            FBApplication().CurrentCharacter = character
+            return character, None
+    return None, {
+        "ok": False,
+        "error": "No characterized character is mapped to selected skeleton scope: {0}.".format(selected_skeleton_scope_label()),
+    }
 
 
 def _character_key_models(character):
@@ -3517,7 +3667,7 @@ def _apply_skeleton_tpose(character):
 
 
 def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
-    character, error = _current_character_or_error()
+    character, error = _scoped_character_or_error()
     if error:
         _append_status(error["error"])
         return error
@@ -3567,6 +3717,7 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
     result = {
         "ok": True,
         "character_name": character.LongName,
+        "skeleton_scope": selected_skeleton_scope_label(),
         "frame": 0,
         "keyed_models": keyed_models,
         "keyed_channels": keyed_channels,
@@ -3575,8 +3726,9 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
         "aligned_segments": aligned_segments,
     }
     _append_status(
-        "T-Pose Frame 0 keyed {0}: skeleton T-pose at frame 0 only, {1} segment(s), {2} model(s), {3} channel key(s).".format(
+        "T-Pose Frame 0 keyed {0} on {1}: skeleton T-pose at frame 0 only, {2} segment(s), {3} model(s), {4} channel key(s).".format(
             character.LongName,
+            selected_skeleton_scope_label(),
             aligned_segments,
             keyed_models,
             keyed_channels,
@@ -3739,6 +3891,7 @@ def _refresh_dashboard():
             len(junk_markers),
             len(prop_markers),
         ),
+        "Skeleton Scope: {0}".format(selected_skeleton_scope_label()),
         "Constraints: {0}".format(len(_scene_constraints())),
         "Prop Marker Base Name: {0}".format(get_prop_marker_base_name()),
         "Current Scene: {0}".format(FBApplication().FBXFileName or "Untitled"),
@@ -3792,6 +3945,11 @@ def _on_clean_markers(control=None, event=None, prop_marker_base_name=None):
 
 def _on_auto_map(control=None, event=None):
     auto_map_character(create_control_rig=True, characterize=True, activate_input=False)
+    _refresh_dashboard()
+
+
+def _on_use_selected_skeleton(control=None, event=None):
+    set_selected_skeleton_scope_from_selection()
     _refresh_dashboard()
 
 
@@ -3966,6 +4124,17 @@ if QtWidgets:
             self.prop_marker_base_field.setToolTip("Type the base name for animated prop markers such as Gun or Sword.")
             marker_row.addWidget(self.prop_marker_base_field, 1)
             layout.addLayout(marker_row)
+            skeleton_row = QtWidgets.QHBoxLayout()
+            skeleton_row.setSpacing(5)
+            skeleton_label = QtWidgets.QLabel("Skeleton Scope")
+            skeleton_label.setToolTip("Aminate will Auto Map and T-Pose this selected skeleton hierarchy.")
+            skeleton_row.addWidget(skeleton_label)
+            self.skeleton_scope_label = QtWidgets.QLabel(selected_skeleton_scope_label())
+            self.skeleton_scope_label.setObjectName("aminateMobuThemeBadge")
+            self.skeleton_scope_label.setToolTip("Selected skeleton root for Auto Map and T-Pose.")
+            skeleton_row.addWidget(self.skeleton_scope_label, 1)
+            skeleton_row.addWidget(self._action_button("Use Selected Skeleton", self._use_selected_skeleton))
+            layout.addLayout(skeleton_row)
             cleaner_grid = QtWidgets.QGridLayout()
             cleaner_grid.setHorizontalSpacing(5)
             cleaner_grid.setVerticalSpacing(4)
@@ -4118,6 +4287,15 @@ if QtWidgets:
                 self.collapse_button.setToolTip("Collapse Aminate into a thin side panel.")
                 self.setMinimumWidth(220)
                 self.resize(max(self.width(), 420), max(self.height(), 520))
+
+        def _refresh_skeleton_scope_label(self):
+            if getattr(self, "skeleton_scope_label", None) is not None:
+                self.skeleton_scope_label.setText(selected_skeleton_scope_label())
+
+        def _use_selected_skeleton(self):
+            set_selected_skeleton_scope_from_selection()
+            self._refresh_skeleton_scope_label()
+            _refresh_dashboard()
 
         def _refresh_constraints_manager(self):
             table = getattr(self, "constraints_table", None)
@@ -4308,6 +4486,7 @@ def _populate_tool_layout(tool):
     container.Add(row, 28)
 
     row = pyfbsdk_additions.FBHBoxLayout(FBAttachType.kFBAttachLeft)
+    row.Add(_button("Use Selected Skeleton", _on_use_selected_skeleton, color=(0.18, 0.34, 0.44)), 170)
     row.Add(_button("Auto Map Skeleton", _on_auto_map, color=(0.40, 0.24, 0.10)), 150)
     row.Add(_button("Validate Character", _on_validate, color=(0.26, 0.24, 0.40)), 150)
     row.Add(_button("T-Pose Frame 0", _on_tpose_frame_zero, color=(0.24, 0.34, 0.40)), 150)
@@ -4347,7 +4526,12 @@ def launch_aminate_mobu():
                 _QT_DOCK = existing_docks[-1]
                 _close_duplicate_aminate_mobu_docks(keep_dock=_QT_DOCK)
                 _QT_TOOL = getattr(_QT_DOCK, "panel", None)
-                if _QT_TOOL is None or not hasattr(_QT_TOOL, "collapse_button") or not hasattr(_QT_TOOL, "constraints_table"):
+                if (
+                    _QT_TOOL is None
+                    or not hasattr(_QT_TOOL, "collapse_button")
+                    or not hasattr(_QT_TOOL, "constraints_table")
+                    or not hasattr(_QT_TOOL, "skeleton_scope_label")
+                ):
                     try:
                         _QT_DOCK.close()
                     except Exception:
@@ -4433,6 +4617,8 @@ __all__ = [
     "set_prop_marker_base_name",
     "set_keying_mode_body_part",
     "set_keying_mode_full_body",
+    "set_selected_skeleton_scope_from_selection",
+    "selected_skeleton_scope_label",
     "startup_bootstrap_path",
     "ensure_motionbuilder_ui_entry",
     "validate_current_character",
