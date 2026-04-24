@@ -2,6 +2,7 @@
 
 ## 2026-04-25
 
+- Added a Constraints Manager panel for listing MotionBuilder constraints, renaming user constraints to readable Aminate names, keying useful constraint properties at the current time, opening bake/plot options, and using clearer Save To Skeleton / Save To Control Rig language
 - Moved the automatic skeleton T-pose to frame 0, stopped rotating feet through toe links, added finger alignment, added green-check status feedback, made Aminate open in Modern by default, and added a collapsible scrollable dock panel for smaller resize widths
 
 ## 2026-04-24

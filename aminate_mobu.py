@@ -21,7 +21,9 @@ from pyfbsdk import (
     FBButton,
     FBCharacter,
     FBCharacterKeyingMode,
+    FBCharacterPlotWhere,
     FBColor,
+    FBConstraint,
     FBAttachType,
     FBButtonLook,
     FBButtonState,
@@ -38,6 +40,8 @@ from pyfbsdk import (
     FBModelMarkerOptical,
     FBModelSkeleton,
     FBModelTransformationType,
+    FBPlotOptions,
+    FBPlotPopup,
     FBPlayerControl,
     FBPopup,
     ShowTool,
@@ -159,6 +163,14 @@ EASY_TOOLTIP_TEXT = {
     "Load Definition": "Load the selected definition preset onto the current character.",
     "Rename Definition": "Rename the selected definition preset using the name field.",
     "Delete Definition": "Delete the selected saved definition preset.",
+    "Constraints Manager": "Manage MotionBuilder constraints with easy names, keying, baking, and plain-English advice.",
+    "List Constraints": "Refresh the list of constraints in the scene.",
+    "Rename To Easy Names": "Rename selected constraints to readable Aminate names.",
+    "Rename All Easy": "Rename every scene constraint to readable Aminate names.",
+    "Key Selected Props": "Key useful constraint properties at the current time.",
+    "Bake Options": "Open MotionBuilder plotting options before saving constrained motion.",
+    "Save To Skeleton": "Plot or save the current character motion onto the skeleton.",
+    "Save To Control Rig": "Plot or save the current character motion onto the control rig.",
     "Donate": "Open Amir's PayPal donation page.",
     "Theme": "Shows which Aminate theme is active right now.",
     "Ready.": "This line shows the latest Aminate status message.",
@@ -2452,6 +2464,201 @@ def _rename_prop_markers(markers, base_name):
     return renamed
 
 
+CONSTRAINT_PROPERTY_KEY_TERMS = (
+    "active",
+    "weight",
+    "blend",
+    "offset",
+    "translation",
+    "rotation",
+    "scaling",
+    "scale",
+    "snap",
+)
+
+
+CONSTRAINT_RECOMMENDATIONS = (
+    "Parent/Position/Rotation: use for prop handoffs, weapon holds, temporary space switching, and dynamic parenting.",
+    "Aim: use for eyes, cameras, look-at rigs, and any control that must point at a target.",
+    "Relation: use for advanced logic, math, remaps, switches, and multi-input rig behaviour.",
+    "Chain IK: use for limbs/tails when you need solver-style posing before baking.",
+    "Always key Weight/Active at the switch frame, then save/bake to Skeleton or Control Rig before cleanup.",
+)
+
+
+def _scene_constraints():
+    constraints = []
+    try:
+        constraints.extend(list(FBSystem().Scene.Constraints))
+    except Exception:
+        constraints = []
+    if not constraints:
+        for component in FBSystem().Scene.Components:
+            try:
+                if isinstance(component, FBConstraint):
+                    constraints.append(component)
+            except Exception:
+                if "Constraint" in type(component).__name__:
+                    constraints.append(component)
+    return [item for item in constraints if item is not None]
+
+
+def _constraint_type_name(constraint):
+    for attr in ("ClassName", "ClassGroupName"):
+        value = getattr(constraint, attr, "")
+        try:
+            value = value() if callable(value) else value
+        except Exception:
+            value = ""
+        if value:
+            return str(value)
+    return type(constraint).__name__
+
+
+def _is_system_constraint(constraint):
+    type_name = (_constraint_type_name(constraint) or "").lower()
+    name = (_component_long_name(constraint) or "").lower()
+    return "solver" in type_name or "hik" in type_name or "solver" in name
+
+
+def _actionable_constraints(constraints=None):
+    return [item for item in list(constraints if constraints is not None else _scene_constraints()) if not _is_system_constraint(item)]
+
+
+def _constraint_target_summary(constraint):
+    names = []
+    try:
+        group_count = int(constraint.ReferenceGroupGetCount())
+    except Exception:
+        group_count = 0
+    for group_index in range(group_count):
+        try:
+            ref_count = int(constraint.ReferenceGetCount(group_index))
+        except Exception:
+            ref_count = 0
+        for ref_index in range(ref_count):
+            try:
+                ref = constraint.ReferenceGet(group_index, ref_index)
+            except Exception:
+                ref = None
+            if ref is not None:
+                names.append(_short_name_from_long_name(_component_long_name(ref)))
+    return ", ".join([name for name in names if name][:4])
+
+
+def constraint_rows():
+    rows = []
+    for index, constraint in enumerate(_scene_constraints(), start=1):
+        rows.append({
+            "index": index,
+            "name": _short_name_from_long_name(_component_long_name(constraint)),
+            "type": _constraint_type_name(constraint),
+            "active": bool(getattr(constraint, "Active", False)),
+            "weight": getattr(constraint, "Weight", ""),
+            "targets": _constraint_target_summary(constraint),
+            "constraint": constraint,
+        })
+    return rows
+
+
+def _constraint_easy_base(constraint):
+    type_name = _constraint_type_name(constraint)
+    type_name = re.sub(r"^FB", "", type_name)
+    type_name = re.sub(r"Constraint", "", type_name, flags=re.IGNORECASE)
+    clean = re.sub(r"[^A-Za-z0-9]+", "_", type_name).strip("_") or "Constraint"
+    return "Aminate_{0}".format(clean)
+
+
+def rename_constraints_to_easy_names(constraints=None):
+    constraints = _actionable_constraints(constraints)
+    existing_names = _existing_component_short_names()
+    renamed = []
+    counters = {}
+    for constraint in constraints:
+        original_short = _short_name_from_long_name(_component_long_name(constraint))
+        base = _constraint_easy_base(constraint)
+        counters[base] = counters.get(base, 0) + 1
+        while True:
+            candidate = "{0}_{1:02d}".format(base, counters[base])
+            counters[base] += 1
+            if candidate == original_short or candidate not in existing_names:
+                break
+        new_long, old_long = _rename_component(constraint, candidate)
+        new_short = _short_name_from_long_name(new_long or candidate)
+        existing_names.discard(original_short)
+        existing_names.add(new_short)
+        renamed.append({"from": old_long, "to": new_long or candidate})
+    _append_status("Renamed {0} user constraint(s) to easy Aminate names.".format(len(renamed)))
+    return renamed
+
+
+def _constraint_keyable_properties(constraint):
+    output = []
+    for prop in getattr(constraint, "PropertyList", []) or []:
+        name = getattr(prop, "Name", "") or str(prop)
+        normalized = _normalize_name(name)
+        if any(term in normalized for term in CONSTRAINT_PROPERTY_KEY_TERMS):
+            output.append(prop)
+    for prop_name in ("Active", "Weight"):
+        try:
+            prop = constraint.PropertyList.Find(prop_name, False)
+        except Exception:
+            prop = None
+        if prop is not None and prop not in output:
+            output.append(prop)
+    return output
+
+
+def key_constraint_properties(constraints=None, time_value=None):
+    constraints = _actionable_constraints(constraints)
+    if time_value is None:
+        try:
+            time_value = FBPlayerControl().GetEditCurrentTime()
+        except Exception:
+            time_value = FBSystem().LocalTime
+    keyed_constraints = 0
+    keyed_channels = 0
+    for constraint in constraints:
+        keyed_here = 0
+        for prop in _constraint_keyable_properties(constraint):
+            keyed_here += _key_property_at_time(prop, time_value)
+        if keyed_here:
+            keyed_constraints += 1
+            keyed_channels += keyed_here
+    _append_status("Keyed {0} constraint(s), {1} property channel(s), at current time.".format(keyed_constraints, keyed_channels))
+    return {"ok": True, "constraints": keyed_constraints, "channels": keyed_channels}
+
+
+def open_constraint_bake_options():
+    try:
+        popup = FBPlotPopup()
+        popup.Popup()
+        _append_status("Opened MotionBuilder bake/plot options. Use Save To Skeleton or Save To Control Rig after choosing options.")
+        return {"ok": True}
+    except Exception as exc:
+        result = {"ok": False, "error": "Could not open bake/plot options: {0}".format(exc)}
+        _append_status(result["error"])
+        return result
+
+
+def save_current_character_motion(plot_where):
+    character, error = _current_character_or_error()
+    if error:
+        _append_status(error["error"])
+        return error
+    options = FBPlotOptions()
+    options.PlotOnFrame = True
+    try:
+        result = bool(character.PlotAnimation(plot_where, options))
+    except Exception as exc:
+        result = False
+        _append_status("Could not save constrained motion: {0}".format(exc))
+        return {"ok": False, "error": str(exc)}
+    target = "Skeleton" if plot_where == FBCharacterPlotWhere.kFBCharacterPlotOnSkeleton else "Control Rig"
+    _append_status("Saved constrained motion to {0}: {1}.".format(target, bool(result)))
+    return {"ok": bool(result), "target": target}
+
+
 def collect_scene_clean_targets():
     cameras = []
     for camera in FBSystem().Scene.Cameras:
@@ -3510,6 +3717,8 @@ def _tool_intro_lines():
         "",
         "Scene Cleaner removes user cameras, deletes junk default markers, and renames animated default markers as prop markers.",
         "History Timeline saves full-scene MotionBuilder snapshot branches beside the current scene.",
+        "Constraints Manager renames constraints, keys Weight/Active style properties at current time, and opens bake/save options.",
+        "Use Save To Skeleton or Save To Control Rig after constraints are keyed so constrained motion becomes normal keys.",
         SCENE_CLEANER_HINT,
         "",
         "Auto Map builds a MotionBuilder character from the best skeleton namespace and tries to characterize it all the way through fingers and extra spine links.",
@@ -3530,6 +3739,7 @@ def _refresh_dashboard():
             len(junk_markers),
             len(prop_markers),
         ),
+        "Constraints: {0}".format(len(_scene_constraints())),
         "Prop Marker Base Name: {0}".format(get_prop_marker_base_name()),
         "Current Scene: {0}".format(FBApplication().FBXFileName or "Untitled"),
         "",
@@ -3617,6 +3827,16 @@ def _on_history_timeline(control=None, event=None):
     _refresh_dashboard()
 
 
+def _on_rename_constraints_easy(control=None, event=None):
+    rename_constraints_to_easy_names(_scene_constraints())
+    _refresh_dashboard()
+
+
+def _on_key_constraints(control=None, event=None):
+    key_constraint_properties(_scene_constraints())
+    _refresh_dashboard()
+
+
 if QtWidgets:
     class AminateMobuPanel(QtWidgets.QWidget):
         def __init__(self, parent=None):
@@ -3675,6 +3895,7 @@ if QtWidgets:
                 )
             )
             body_layout.addWidget(self._build_actions_group())
+            body_layout.addWidget(self._build_constraints_manager_group())
             body_layout.addWidget(self._build_definition_manager_group())
             body_layout.addWidget(self._build_note_group())
             self.status_label = QtWidgets.QLabel("Ready.")
@@ -3769,6 +3990,46 @@ if QtWidgets:
             layout.addLayout(history_row)
             return group
 
+        def _build_constraints_manager_group(self):
+            group = QtWidgets.QGroupBox("Constraints Manager")
+            group.setToolTip("Better MotionBuilder constraint management: list, rename, key, save, and bake.")
+            layout = QtWidgets.QVBoxLayout(group)
+            layout.setSpacing(5)
+
+            self.constraints_table = QtWidgets.QTableWidget(0, 5)
+            self.constraints_table.setObjectName("aminateMobuConstraintsTable")
+            self.constraints_table.setHorizontalHeaderLabels(["Name", "Type", "Active", "Weight", "Targets"])
+            self.constraints_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+            self.constraints_table.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+            self.constraints_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+            self.constraints_table.setToolTip("Select constraints here, then rename or key them.")
+            self.constraints_table.setMinimumHeight(92)
+            try:
+                self.constraints_table.horizontalHeader().setStretchLastSection(True)
+            except Exception:
+                pass
+            layout.addWidget(self.constraints_table)
+
+            button_grid = QtWidgets.QGridLayout()
+            button_grid.setHorizontalSpacing(5)
+            button_grid.setVerticalSpacing(4)
+            button_grid.addWidget(self._action_button("List Constraints", self._refresh_constraints_manager), 0, 0)
+            button_grid.addWidget(self._action_button("Rename To Easy Names", self._rename_selected_constraints_easy), 0, 1)
+            button_grid.addWidget(self._action_button("Rename All Easy", self._rename_all_constraints_easy), 0, 2)
+            button_grid.addWidget(self._action_button("Key Selected Props", self._key_selected_constraint_props), 0, 3)
+            button_grid.addWidget(self._action_button("Bake Options", self._open_bake_options), 1, 0)
+            button_grid.addWidget(self._action_button("Save To Skeleton", self._save_to_skeleton), 1, 1)
+            button_grid.addWidget(self._action_button("Save To Control Rig", self._save_to_control_rig), 1, 2)
+            layout.addLayout(button_grid)
+
+            self.constraints_recommendations = QtWidgets.QLabel("\n".join(CONSTRAINT_RECOMMENDATIONS))
+            self.constraints_recommendations.setObjectName("aminateMobuGroupHint")
+            self.constraints_recommendations.setWordWrap(True)
+            self.constraints_recommendations.setToolTip("Plain-English constraint suggestions.")
+            layout.addWidget(self.constraints_recommendations)
+            self._refresh_constraints_manager()
+            return group
+
         def _build_definition_manager_group(self):
             group = QtWidgets.QGroupBox("Definition Manager")
             group.setToolTip("Save, load, rename, and delete quick character definition presets.")
@@ -3857,6 +4118,73 @@ if QtWidgets:
                 self.collapse_button.setToolTip("Collapse Aminate into a thin side panel.")
                 self.setMinimumWidth(220)
                 self.resize(max(self.width(), 420), max(self.height(), 520))
+
+        def _refresh_constraints_manager(self):
+            table = getattr(self, "constraints_table", None)
+            if table is None:
+                return
+            rows = constraint_rows()
+            self._constraint_row_objects = [row["constraint"] for row in rows]
+            table.setRowCount(len(rows))
+            for row_index, row in enumerate(rows):
+                values = [
+                    row["name"],
+                    row["type"],
+                    "Yes" if row["active"] else "No",
+                    str(row["weight"]),
+                    row["targets"],
+                ]
+                for col_index, value in enumerate(values):
+                    item = QtWidgets.QTableWidgetItem(str(value))
+                    table.setItem(row_index, col_index, item)
+            try:
+                table.resizeColumnsToContents()
+            except Exception:
+                pass
+            _append_status("Constraints Manager listed {0} constraint(s).".format(len(rows)))
+            _refresh_dashboard()
+
+        def _selected_constraints_from_table(self):
+            table = getattr(self, "constraints_table", None)
+            objects = getattr(self, "_constraint_row_objects", [])
+            if table is None:
+                return []
+            rows = sorted({index.row() for index in table.selectionModel().selectedRows()})
+            selected = []
+            for row in rows:
+                if 0 <= row < len(objects):
+                    selected.append(objects[row])
+            return selected
+
+        def _rename_selected_constraints_easy(self):
+            selected = self._selected_constraints_from_table()
+            if not selected:
+                selected = _scene_constraints()
+            rename_constraints_to_easy_names(selected)
+            self._refresh_constraints_manager()
+
+        def _rename_all_constraints_easy(self):
+            rename_constraints_to_easy_names(_scene_constraints())
+            self._refresh_constraints_manager()
+
+        def _key_selected_constraint_props(self):
+            selected = self._selected_constraints_from_table()
+            if not selected:
+                selected = _scene_constraints()
+            key_constraint_properties(selected)
+            _refresh_dashboard()
+
+        def _open_bake_options(self):
+            open_constraint_bake_options()
+            _refresh_dashboard()
+
+        def _save_to_skeleton(self):
+            save_current_character_motion(FBCharacterPlotWhere.kFBCharacterPlotOnSkeleton)
+            _refresh_dashboard()
+
+        def _save_to_control_rig(self):
+            save_current_character_motion(FBCharacterPlotWhere.kFBCharacterPlotOnControlRig)
+            _refresh_dashboard()
 
         def _cleaner_base_name(self):
             return set_prop_marker_base_name(getattr(self, "prop_marker_base_field", None).text() if getattr(self, "prop_marker_base_field", None) is not None else get_prop_marker_base_name())
@@ -3989,6 +4317,8 @@ def _populate_tool_layout(tool):
 
     row = pyfbsdk_additions.FBHBoxLayout(FBAttachType.kFBAttachLeft)
     row.Add(_button("History Timeline", _on_history_timeline, color=(0.46, 0.34, 0.12)), 180)
+    row.Add(_button("Rename To Easy Names", _on_rename_constraints_easy, color=(0.24, 0.34, 0.40)), 180)
+    row.Add(_button("Key Selected Props", _on_key_constraints, color=(0.24, 0.34, 0.40)), 160)
     container.Add(row, 28)
 
     note = FBEdit()
@@ -4017,7 +4347,7 @@ def launch_aminate_mobu():
                 _QT_DOCK = existing_docks[-1]
                 _close_duplicate_aminate_mobu_docks(keep_dock=_QT_DOCK)
                 _QT_TOOL = getattr(_QT_DOCK, "panel", None)
-                if _QT_TOOL is None or not hasattr(_QT_TOOL, "collapse_button"):
+                if _QT_TOOL is None or not hasattr(_QT_TOOL, "collapse_button") or not hasattr(_QT_TOOL, "constraints_table"):
                     try:
                         _QT_DOCK.close()
                     except Exception:
@@ -4090,12 +4420,14 @@ __all__ = [
     "handle_transform_attempt",
     "install_motionbuilder_startup",
     "install_runtime_watchers",
+    "key_constraint_properties",
     "launch_aminate_mobu",
     "make_tpose_on_frame_zero",
     "make_tpose_on_frame_one",
     "maybe_warn_control_rig_mode",
     "maybe_warn_lock_definition",
     "remove_runtime_watchers",
+    "rename_constraints_to_easy_names",
     "reset_runtime_state",
     "run_scene_cleaner",
     "set_prop_marker_base_name",
