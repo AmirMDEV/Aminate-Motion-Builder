@@ -1107,6 +1107,146 @@ def _is_dummy_name(name):
     return clean.endswith("dummy") or clean.endswith("end")
 
 
+def _name_tokens(name):
+    text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", str(name or ""))
+    tokens = [item.lower() for item in re.split(r"[^A-Za-z0-9]+", text) if item]
+    return [item for item in tokens if item not in ("mixamorig", "bip", "bone", "joint", "skel", "jnt")]
+
+
+def _side_from_tokens(tokens, normalized):
+    token_set = set(tokens)
+    if token_set.intersection(("left", "l")) or normalized.startswith("left") or normalized.endswith("left"):
+        return "left"
+    if token_set.intersection(("right", "r")) or normalized.startswith("right") or normalized.endswith("right"):
+        return "right"
+    return ""
+
+
+def _slot_side(slot_name):
+    if slot_name.startswith("Left"):
+        return "left"
+    if slot_name.startswith("Right"):
+        return "right"
+    return ""
+
+
+def _slot_number(slot_name):
+    match = re.search(r"(\d+)Link$", slot_name)
+    return int(match.group(1)) if match else None
+
+
+def _token_has_number(tokens, number):
+    if number is None:
+        return True
+    wanted = str(number)
+    padded = "0{0}".format(number)
+    return any(item == wanted or item == padded or item.endswith(wanted) for item in tokens)
+
+
+def _auto_map_slot_terms(slot_name):
+    base = slot_name.replace("Left", "").replace("Right", "")
+    base = re.sub(r"\d+Link$", "Link", base)
+    terms = {
+        "ReferenceLink": ("reference", "root"),
+        "HipsLink": ("hips", "hip", "pelvis"),
+        "HipsTranslationLink": ("hips", "hip", "pelvis"),
+        "SpineLink": ("spine", "waist"),
+        "NeckLink": ("neck",),
+        "HeadLink": ("head",),
+        "ShoulderLink": ("shoulder", "clavicle", "collar"),
+        "ArmLink": ("upperarm", "uparm", "arm"),
+        "ArmRollLink": ("upperarmtwist", "upperarmroll", "uparmtwist", "twist"),
+        "ForeArmLink": ("lowerarm", "forearm", "loarm"),
+        "ForeArmRollLink": ("lowerarmtwist", "forearmtwist", "lowerarmroll", "twist"),
+        "HandLink": ("hand", "wrist"),
+        "UpLegLink": ("upleg", "upperleg", "thigh"),
+        "UpLegRollLink": ("thightwist", "uplegtwist", "upperlegtwist", "thighroll", "twist"),
+        "LegLink": ("leg", "lowerleg", "calf", "shin"),
+        "LegRollLink": ("calftwist", "legtwist", "lowerlegtwist", "calfroll", "twist"),
+        "FootLink": ("foot", "ankle"),
+        "ToeBaseLink": ("toebase", "toe", "ball"),
+        "HandThumbLink": ("thumb",),
+        "HandIndexLink": ("index", "pointer"),
+        "HandMiddleLink": ("middle",),
+        "HandRingLink": ("ring",),
+        "HandPinkyLink": ("pinky", "little"),
+    }
+    if "Thumb" in slot_name:
+        return terms["HandThumbLink"]
+    if "Index" in slot_name:
+        return terms["HandIndexLink"]
+    if "Middle" in slot_name:
+        return terms["HandMiddleLink"]
+    if "Ring" in slot_name:
+        return terms["HandRingLink"]
+    if "Pinky" in slot_name:
+        return terms["HandPinkyLink"]
+    return terms.get(base, ())
+
+
+def _candidate_slot_score(slot_name, normalized_name, model):
+    short_name = _short_name_from_long_name(_component_long_name(model))
+    tokens = _name_tokens(short_name)
+    token_set = set(tokens)
+    side = _slot_side(slot_name)
+    if side and _side_from_tokens(tokens, normalized_name) != side:
+        return 0
+    if not side and _side_from_tokens(tokens, normalized_name):
+        return 0
+
+    score = 0
+    for candidate in CHARACTER_SLOT_CANDIDATES.get(slot_name, ()):
+        candidate_norm = _normalize_name(candidate)
+        if normalized_name == candidate_norm:
+            score = max(score, 100)
+        elif normalized_name.endswith(candidate_norm) or normalized_name.startswith(candidate_norm):
+            score = max(score, 75)
+
+    terms = _auto_map_slot_terms(slot_name)
+    compact_tokens = {_normalize_name(item) for item in tokens}
+    for term in terms:
+        term_norm = _normalize_name(term)
+        if term_norm in compact_tokens:
+            score = max(score, 70 if len(term_norm) > 5 else 60)
+        elif term_norm in normalized_name:
+            score = max(score, 85 if len(term_norm) > 5 else 60)
+
+    if score <= 0:
+        return 0
+
+    number = _slot_number(slot_name)
+    finger_slot = any(name in slot_name for name in ("Thumb", "Index", "Middle", "Ring", "Pinky"))
+    if finger_slot and not _token_has_number(tokens, number):
+        return 0
+    if finger_slot and "metacarpal" in token_set:
+        score -= 20
+    if "RollLink" in slot_name and not ("twist" in normalized_name or "roll" in normalized_name):
+        return 0
+    if "RollLink" not in slot_name and ("twist" in normalized_name or "roll" in normalized_name):
+        score -= 25
+    if "ToeBaseLink" in slot_name and "ik" in token_set:
+        return 0
+    if slot_name in ("ReferenceLink", "HipsLink", "HipsTranslationLink") and "ik" in token_set:
+        return 0
+    if "Spine" in slot_name:
+        number = _slot_number(slot_name)
+        if number is None:
+            if any(item in token_set for item in ("01", "1")):
+                score += 15
+        elif _token_has_number(tokens, number):
+            score += 15
+        else:
+            score -= 25
+    if "RollLink" in slot_name:
+        if any(item in token_set for item in ("01", "1")):
+            score += 8
+        if any(item in token_set for item in ("02", "2")):
+            score -= 2
+    if side:
+        score += 10
+    return score
+
+
 def _qt_main_window():
     if QtWidgets is None:
         return None
@@ -2303,12 +2443,29 @@ def _index_namespace_skeletons(namespace):
     return indexed
 
 
-def _slot_match_for_index(slot_name, indexed):
+def _slot_match_for_index(slot_name, indexed, used_models=None):
+    used_models = used_models or set()
+    best_model = None
+    best_score = 0
     for candidate in CHARACTER_SLOT_CANDIDATES.get(slot_name, ()):
         model = indexed.get(_normalize_name(candidate))
-        if model is not None:
+        if model is not None and _component_long_name(model) not in used_models:
             return model
-    return None
+    for normalized, model in indexed.items():
+        if _component_long_name(model) in used_models:
+            continue
+        score = _candidate_slot_score(slot_name, normalized, model)
+        if score > best_score:
+            best_model = model
+            best_score = score
+    return best_model
+
+
+def _slot_score_for_index(slot_name, indexed):
+    model = _slot_match_for_index(slot_name, indexed)
+    if model is None:
+        return 0
+    return _candidate_slot_score(slot_name, _normalize_name(_short_name_from_long_name(_component_long_name(model))), model) or 100
 
 
 def _available_namespaces():
@@ -2322,8 +2479,7 @@ def _namespace_score(namespace):
     indexed = _index_namespace_skeletons(namespace)
     score = 0
     for slot_name in CORE_REQUIRED_LINKS:
-        if _slot_match_for_index(slot_name, indexed):
-            score += 1
+        score += _slot_score_for_index(slot_name, indexed)
     return score, indexed
 
 
@@ -2356,10 +2512,53 @@ def _unique_character_name(base_name):
         counter += 1
 
 
-def _map_model_to_slot(character, slot_name, model):
+def _is_aminate_generated_character(character):
+    return _component_short_name(character).startswith("AminateMobu_")
+
+
+def _auto_map_target_character(namespace_label):
+    current = _current_character()
+    scene_characters = list(FBSystem().Scene.Characters)
+    non_aminate_open = [
+        character for character in scene_characters if character is not None and not _is_aminate_generated_character(character)
+    ]
+    if current is not None:
+        if not _is_aminate_generated_character(current) or not non_aminate_open:
+            return current, False
+    if non_aminate_open:
+        return non_aminate_open[0], False
+    character_name = _unique_character_name("AminateMobu_{0}".format(namespace_label.replace(":", "_") or "Character"))
+    return FBCharacter(character_name), True
+
+
+def _disconnect_all_sources(prop):
+    if prop is None:
+        return
+    try:
+        prop.DisconnectAllSrc()
+        return
+    except Exception:
+        pass
+    for index in range(_property_src_count(prop) - 1, -1, -1):
+        source = None
+        try:
+            source = prop.GetSrc(index)
+        except Exception:
+            source = None
+        if source is None:
+            continue
+        try:
+            prop.DisconnectSrc(source)
+        except Exception:
+            pass
+
+
+def _map_model_to_slot(character, slot_name, model, replace_existing=True):
     prop = character.PropertyList.Find(slot_name, False)
     if prop is None or model is None:
         return False
+    if replace_existing:
+        _disconnect_all_sources(prop)
     try:
         prop.append(model)
         return True
@@ -2440,18 +2639,26 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
         _append_status(result["error"])
         return result
     namespace_label = namespace or "Scene"
-    character_name = _unique_character_name("AminateMobu_{0}".format(namespace_label.replace(":", "_") or "Character"))
-    character = FBCharacter(character_name)
+    character, character_created = _auto_map_target_character(namespace_label)
     FBApplication().CurrentCharacter = character
+    was_characterized = bool(character.GetCharacterize())
+    if was_characterized:
+        try:
+            character.SetCharacterizeOn(False)
+        except Exception:
+            pass
     mapped = OrderedDict()
+    used_models = set()
     for slot_name in CHARACTER_SLOT_CANDIDATES:
-        model = _slot_match_for_index(slot_name, indexed)
+        model = _slot_match_for_index(slot_name, indexed, used_models=used_models)
         if model is None:
             continue
         if slot_name == "HipsTranslationLink" and _component_long_name(model) == mapped.get("HipsLink", ""):
             continue
         if _map_model_to_slot(character, slot_name, model):
-            mapped[slot_name] = _component_long_name(model)
+            model_name = _component_long_name(model)
+            mapped[slot_name] = model_name
+            used_models.add(model_name)
     characterize_result = None
     characterize_error = None
     control_rig_result = None
@@ -2475,6 +2682,8 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
         "namespace": namespace,
         "score": score,
         "character_name": character.LongName,
+        "character_created": bool(character_created),
+        "was_characterized": bool(was_characterized),
         "mapped_slots": dict(mapped),
         "mapped_count": len(mapped),
         "core_link_count": _core_link_count(character),
@@ -2484,10 +2693,12 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
         "control_rig_result": control_rig_result,
     }
     _append_status(
-        "Auto Map created {0} from {1} with {2} mapped slot(s). Characterized: {3}.".format(
+        "Auto Map mapped {0} from {1} with {2} mapped slot(s), core {3}/{4}. Characterized: {5}.".format(
             character.LongName,
             namespace_label,
             len(mapped),
+            _core_link_count(character),
+            len(CORE_REQUIRED_LINKS),
             bool(character.GetCharacterize()),
         )
     )

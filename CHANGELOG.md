@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-24
+
+- Improved Auto Map Skeleton with scored humanoid matching for common naming styles such as Unreal side suffixes, Mixamo/HIK-style aliases, Blender side markers, fingers, toes, twist bones, and existing-character remapping
+
 ## 2026-04-22
 
 - Rebuilt the `Modern` theme from the captured clean-host reference and generated concept with a darker graphite and steel-blue token set across host chrome and Aminate-owned surfaces while leaving the native `MotionBuilder` restore path untouched
