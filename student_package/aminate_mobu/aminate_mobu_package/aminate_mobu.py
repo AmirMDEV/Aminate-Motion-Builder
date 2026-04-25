@@ -113,6 +113,12 @@ DEFAULT_TOAST_DURATION_MS = 4000
 DEFAULT_PROP_MARKER_BASE_NAME = "Prop"
 UNLABELLED_MARKER_PATTERN = re.compile(r"^(marker|tmpmarker|unnamedmarker)(?:\s+\d+)?$", re.IGNORECASE)
 CONTROL_RIG_PROPERTY_NAMES = {"Lcl Translation", "Lcl Rotation"}
+MARKER_TRANSFORM_PROPERTY_NAMES = (
+    "Lcl Translation",
+    "Lcl Rotation",
+    "Translation",
+    "Rotation",
+)
 TPOSE_AXIS_DOT_THRESHOLD = 0.995
 TPOSE_ALIGN_FINGERS = False
 EASY_TOOLTIP_TEXT = {
@@ -3332,12 +3338,25 @@ def _property_has_animation_keys(prop):
         animation_node = None
     if animation_node is None:
         return False
+
+    def _node_has_keys(node):
+        fcurve = getattr(node, "FCurve", None)
+        if fcurve is not None:
+            try:
+                if len(fcurve.Keys) > 0:
+                    return True
+            except Exception:
+                pass
+        for child in getattr(node, "Nodes", []) or []:
+            if _node_has_keys(child):
+                return True
+        return False
+
+    if _node_has_keys(animation_node):
+        return True
     for child in getattr(animation_node, "Nodes", []) or []:
-        fcurve = getattr(child, "FCurve", None)
-        if fcurve is None:
-            continue
         try:
-            if len(fcurve.Keys) > 0:
+            if _node_has_keys(child):
                 return True
         except Exception:
             continue
@@ -3347,8 +3366,12 @@ def _property_has_animation_keys(prop):
 def _marker_has_transform_animation(marker):
     if marker is None:
         return False
-    for prop_name in CONTROL_RIG_PROPERTY_NAMES:
+    for prop_name in MARKER_TRANSFORM_PROPERTY_NAMES:
         prop = marker.PropertyList.Find(prop_name)
+        if _property_has_animation_keys(prop):
+            return True
+    for attr_name in ("Translation", "Rotation"):
+        prop = getattr(marker, attr_name, None)
         if _property_has_animation_keys(prop):
             return True
     return False
