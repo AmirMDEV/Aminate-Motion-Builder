@@ -2,6 +2,8 @@
 
 ## 2026-04-25
 
+- Replaced constraint tutorial GIFs with simple imagegen-based static PNG explanation cards and made the Constraints Manager preview scale with the Aminate panel size
+- Fixed T-Pose Frame 0 in multi-character retarget scenes so it prefers the active target character over a stale selected source bone, T-poses the linked source and target on frame 0, preserves the source dropdown, and leaves input inactive for a green Definition check before reactivating retarget
 - Improved icon-only and weak MotionBuilder tooltips with default-action lookup, parent-panel context fallback, clearer Zero/Flat/Delete Key explanations, and tooltip reanimation throttling to reduce hover flicker
 - Fixed Quinn T-Pose Frame 0 validation by aiming arms at MotionBuilder's global X axis, stopping the finger pass from rotating the hand/wrist bones, using skeleton-only Auto Map/T-pose by default, and locking the character definition after a clean characterize
 - Reworked MotionBuilder and Aminate tooltips into short explanatory `Title - explanation` help text, added a rich wrapped tooltip popup with a fast open animation, expanded transport/keying/character/constraint tooltip coverage, and verified the live host refreshed 261 tooltip targets

@@ -2,76 +2,76 @@
   "position": {
     "title": "Position",
     "description": "Copies location only",
-    "file": "position.gif"
+    "file": "position.png"
   },
   "rotation": {
     "title": "Rotation",
     "description": "Copies turning only",
-    "file": "rotation.gif"
+    "file": "rotation.png"
   },
   "scale": {
     "title": "Scale",
     "description": "Copies size changes",
-    "file": "scale.gif"
+    "file": "scale.png"
   },
   "aim": {
     "title": "Aim",
     "description": "Points object at target",
-    "file": "aim.gif"
+    "file": "aim.png"
   },
   "parentchild": {
     "title": "Parent-Child",
     "description": "Follows parent space",
-    "file": "parentchild.gif"
+    "file": "parentchild.png"
   },
   "relation": {
     "title": "Relation",
     "description": "Logic boxes drive values",
-    "file": "relation.gif"
+    "file": "relation.png"
   },
   "chainik": {
     "title": "Chain IK",
     "description": "IK handle bends chain",
-    "file": "chainik.gif"
+    "file": "chainik.png"
   },
   "splineik": {
     "title": "Spline IK",
     "description": "Curve bends chain",
-    "file": "splineik.gif"
+    "file": "splineik.png"
   },
   "path": {
     "title": "Path",
     "description": "Object follows path",
-    "file": "path.gif"
+    "file": "path.png"
   },
   "expression": {
     "title": "Expression",
     "description": "Formula drives motion",
-    "file": "expression.gif"
+    "file": "expression.png"
   },
   "range": {
     "title": "Range",
     "description": "Limits or remaps values",
-    "file": "range.gif"
+    "file": "range.png"
   },
   "mapping": {
     "title": "Mapping",
     "description": "Maps one rig to another",
-    "file": "mapping.gif"
+    "file": "mapping.png"
   },
   "multireferential": {
     "title": "Multi-Referential",
     "description": "Switches parent spaces",
-    "file": "multireferential.gif"
+    "file": "multireferential.png"
   },
   "threepoints": {
-    "title": "3 Points",
+    "title": "Three Points",
     "description": "Builds plane from 3 markers",
-    "file": "threepoints.gif"
+    "file": "threepoints.png"
   },
   "rigidbody": {
     "title": "Rigid Body",
     "description": "Physics collision style",
-    "file": "rigidbody.gif"
+    "file": "rigidbody.png"
   }
 }

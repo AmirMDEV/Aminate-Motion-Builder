@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 9
+QT_PANEL_BUILD_VERSION = 12
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -3447,7 +3447,7 @@ def _constraint_tutorial_key(constraint):
 def _constraint_tutorial_asset_path(key):
     index = _constraint_tutorial_index()
     item = index.get(key) or {}
-    file_name = item.get("file") or "{0}.gif".format(key)
+    file_name = item.get("file") or "{0}.png".format(key)
     return os.path.join(_module_root_dir(), "assets", "tutorials", "constraints", file_name)
 
 
@@ -3883,16 +3883,69 @@ def _set_character_definition_lock(character, locked):
         return False
 
 
+def _set_characterize_off(character):
+    if character is None:
+        return False
+    try:
+        character.SetCharacterizeOff()
+        return True
+    except Exception:
+        pass
+    try:
+        return bool(character.SetCharacterizeOn(False))
+    except Exception:
+        return False
+
+
+def _character_input_character(character):
+    if character is None:
+        return None
+    try:
+        return character.InputCharacter
+    except Exception:
+        return None
+
+
+def _capture_character_input_state(character):
+    if character is None:
+        return {}
+    state = {}
+    for attr_name in ("InputCharacter", "InputType", "InputActor", "ActiveInput"):
+        try:
+            state[attr_name] = getattr(character, attr_name)
+        except Exception:
+            state[attr_name] = None
+    return state
+
+
+def _restore_character_input_state(character, state, restore_active_input=False):
+    if character is None or not state:
+        return False
+    restored = False
+    for attr_name in ("InputCharacter", "InputActor", "InputType"):
+        value = state.get(attr_name)
+        if value is None:
+            continue
+        try:
+            setattr(character, attr_name, value)
+            restored = True
+        except Exception:
+            pass
+    try:
+        character.ActiveInput = bool(state.get("ActiveInput")) if restore_active_input else False
+        restored = True
+    except Exception:
+        pass
+    return restored
+
+
 def _characterize_with_roll_fallback(character):
     _set_current_character(character)
     result, error = _set_characterized(character, True)
     clean = _sanitize_motionbuilder_warning_text(error or "")
     cleared = 0
     if clean and "invalid roll" in clean.lower():
-        try:
-            character.SetCharacterizeOn(False)
-        except Exception:
-            pass
+        _set_characterize_off(character)
         cleared = _clear_roll_links(character)
         result, error = _set_characterized(character, True)
     if result and not _sanitize_motionbuilder_warning_text(error or ""):
@@ -4013,10 +4066,7 @@ def load_character_definition(name):
     was_characterized = bool(character.GetCharacterize())
     if was_characterized:
         _set_character_definition_lock(character, False)
-        try:
-            character.SetCharacterizeOn(False)
-        except Exception:
-            pass
+        _set_characterize_off(character)
     namespace, indexed, _score = find_best_skeleton_namespace()
     mapped = OrderedDict()
     missing = []
@@ -4179,10 +4229,7 @@ def auto_map_character(create_control_rig=False, characterize=True, activate_inp
     _set_current_character(character)
     was_characterized = bool(character.GetCharacterize())
     if was_characterized:
-        try:
-            character.SetCharacterizeOn(False)
-        except Exception:
-            pass
+        _set_characterize_off(character)
     mapped = OrderedDict()
     used_models = set()
     for slot_name in CHARACTER_SLOT_CANDIDATES:
@@ -4597,26 +4644,60 @@ def _tpose_arm_axis_report(character):
     }
 
 
-def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False):
-    character, error = _scoped_character_or_error()
-    if error:
-        _append_status(error["error"])
-        return error
+def _preferred_tpose_character_or_error():
+    current = _current_character()
+    if current is not None and _character_input_character(current) is not None:
+        return current, None
+    scope_error = _require_skeleton_scope_if_needed()
+    if scope_error:
+        return None, scope_error
+    if _character_matches_skeleton_scope(current):
+        if current is None:
+            return None, {"ok": False, "error": "No current character."}
+        return current, None
+    for character in FBSystem().Scene.Characters:
+        if _character_matches_skeleton_scope(character):
+            _set_current_character(character)
+            return character, None
+    return None, {
+        "ok": False,
+        "error": "No characterized character is mapped to selected skeleton scope: {0}.".format(selected_skeleton_scope_label()),
+    }
+
+
+def _ordered_tpose_characters(character):
+    if character is None:
+        return []
+    ordered = []
+    source = _character_input_character(character)
+    if source is not None and source is not character:
+        ordered.append(source)
+    ordered.append(character)
+    seen = set()
+    unique = []
+    for item in ordered:
+        name = _component_long_name(item)
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        unique.append(item)
+    return unique
+
+
+def _make_single_character_tpose_on_frame_zero(character, key_skeleton=True, key_control_rig=False):
     _set_current_character(character)
     was_characterized = bool(character.GetCharacterize())
     if not was_characterized:
         result = {"ok": False, "error": "Current character is not characterized. Auto Map Skeleton first."}
         _append_status(result["error"])
         return result
+    input_state = _capture_character_input_state(character)
     try:
         character.ActiveInput = False
     except Exception:
         pass
     _set_character_definition_lock(character, False)
-    try:
-        character.SetCharacterizeOn(False)
-    except Exception:
-        pass
+    _set_characterize_off(character)
 
     player = FBPlayerControl()
     frame_zero = FBTime(0, 0, 0, 0)
@@ -4633,16 +4714,14 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False):
     _set_current_character(character)
     axis_report = _tpose_arm_axis_report(character)
     if not axis_report["ok"]:
-        try:
-            character.SetCharacterizeOn(False)
-        except Exception:
-            pass
+        _set_characterize_off(character)
         aligned_segments += _apply_skeleton_tpose(character)
         _evaluate_scene()
         characterize_result, characterize_error, cleared_roll_links_retry = _characterize_with_roll_fallback(character)
         cleared_roll_links += cleared_roll_links_retry
         _set_current_character(character)
         axis_report = _tpose_arm_axis_report(character)
+    _restore_character_input_state(character, input_state, restore_active_input=False)
     stance_pose_ok = bool(character.GetCharacterize()) and not bool(characterize_error) and bool(axis_report["ok"])
 
     keyed_models = 0
@@ -4686,22 +4765,59 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False):
         "characterize_error": characterize_error,
         "tpose_axis_min_dot": axis_report["min_dot"],
         "tpose_axis_failures": axis_report["failures"],
+        "input_source": _component_long_name(_character_input_character(character)),
+        "active_input_after": bool(getattr(character, "ActiveInput", False)),
     }
+    return result
+
+
+def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False):
+    character, error = _preferred_tpose_character_or_error()
+    if error:
+        _append_status(error["error"])
+        return error
+    results = []
+    for item in _ordered_tpose_characters(character):
+        result = _make_single_character_tpose_on_frame_zero(
+            item,
+            key_skeleton=key_skeleton,
+            key_control_rig=key_control_rig,
+        )
+        results.append(result)
+        if not result.get("ok"):
+            return result
+    result = results[-1] if results else {"ok": False, "error": "No character to T-pose."}
+    result = dict(result)
+    result["characters_tposed"] = [
+        item.get("character_name")
+        for item in results
+        if item.get("character_name")
+    ]
     _append_status(
-        "T-Pose Frame 0 keyed {0} on {1}: skeleton T-pose at frame 0 only, {2} segment(s), {3} model(s), {4} channel key(s), green check {5}, arm axis {6:.3f}.".format(
+        "T-Pose Frame 0 keyed {0}: frame 0 only, {1} character(s), green check {2}, arm axis {3:.3f}. Source link kept, input left off for definition check.".format(
             character.LongName,
-            selected_skeleton_scope_label(),
-            aligned_segments,
-            keyed_models,
-            keyed_channels,
-            stance_pose_ok,
-            axis_report["min_dot"],
+            len(results),
+            result.get("stance_pose_ok"),
+            result.get("tpose_axis_min_dot", 0.0),
         )
     )
-    if characterize_error:
-        clean_warning = _sanitize_motionbuilder_warning_text(characterize_error)
-        if clean_warning:
-            _append_status("MotionBuilder warnings: {0}".format(clean_warning.replace("\n", " | ")))
+    for item in results:
+        _append_status(
+            "T-Pose detail {0} on {1}: {2} segment(s), {3} model(s), {4} channel key(s), green check {5}, arm axis {6:.3f}.".format(
+                item.get("character_name"),
+                selected_skeleton_scope_label(),
+                item.get("aligned_segments"),
+                item.get("keyed_models"),
+                item.get("keyed_channels"),
+                item.get("stance_pose_ok"),
+                item.get("tpose_axis_min_dot", 0.0),
+            )
+        )
+        characterize_error = item.get("characterize_error")
+        if characterize_error:
+            clean_warning = _sanitize_motionbuilder_warning_text(characterize_error)
+            if clean_warning:
+                _append_status("MotionBuilder warnings: {0}".format(clean_warning.replace("\n", " | ")))
     return result
 
 
@@ -5180,11 +5296,12 @@ if QtWidgets:
             layout.addWidget(self.constraint_preview_title)
             self.constraint_preview = QtWidgets.QLabel()
             self.constraint_preview.setObjectName("aminateMobuConstraintPreview")
-            self.constraint_preview.setMinimumSize(320, 180)
+            self.constraint_preview.setMinimumSize(220, 150)
             self.constraint_preview.setAlignment(QtCore.Qt.AlignCenter)
-            self.constraint_preview.setToolTip("Animated constraint tutorial preview.")
-            layout.addWidget(self.constraint_preview)
-            self._constraint_preview_movie = None
+            self.constraint_preview.setScaledContents(True)
+            self.constraint_preview.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+            self.constraint_preview.setToolTip("Simple visual constraint preview.")
+            layout.addWidget(self.constraint_preview, 1)
             self._constraint_preview_key = ""
             self._populate_constraint_tutorial_combo()
 
@@ -5349,14 +5466,12 @@ if QtWidgets:
                 if getattr(self, "constraint_preview", None) is not None:
                     self.constraint_preview.setText("No preview found for {0}".format(title))
                 return
-            if getattr(self, "_constraint_preview_movie", None) is not None:
-                self._constraint_preview_movie.stop()
-            movie = QtGui.QMovie(path)
-            movie.setCacheMode(QtGui.QMovie.CacheAll)
-            movie.setScaledSize(QtCore.QSize(320, 180))
-            self.constraint_preview.setMovie(movie)
-            movie.start()
-            self._constraint_preview_movie = movie
+            pixmap = QtGui.QPixmap(path)
+            if pixmap.isNull():
+                self.constraint_preview.setText("No preview found for {0}".format(title))
+                return
+            self.constraint_preview.clear()
+            self.constraint_preview.setPixmap(pixmap)
             self._constraint_preview_key = key
 
         def _preview_constraint_table_item(self, item):
