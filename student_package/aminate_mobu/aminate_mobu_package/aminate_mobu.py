@@ -1109,6 +1109,8 @@ CHARACTER_SLOT_CANDIDATES = OrderedDict(
     ]
 )
 
+ROLL_LINK_SLOTS = tuple(slot_name for slot_name in CHARACTER_SLOT_CANDIDATES if "RollLink" in slot_name)
+
 _TOOL = None
 _QT_TOOL = None
 _QT_DOCK = None
@@ -3463,6 +3465,36 @@ def _map_model_to_slot(character, slot_name, model, replace_existing=True):
             return False
 
 
+def _clear_roll_links(character):
+    if character is None:
+        return 0
+    cleared = 0
+    for slot_name in ROLL_LINK_SLOTS:
+        prop = character.PropertyList.Find(slot_name, False)
+        if prop is None:
+            continue
+        before = _property_src_count(prop)
+        _disconnect_all_sources(prop)
+        if before:
+            cleared += 1
+    return cleared
+
+
+def _set_characterized(character, enabled):
+    if character is None:
+        return False, ""
+    try:
+        result = bool(character.SetCharacterizeOn(bool(enabled)))
+    except Exception as exc:
+        return False, str(exc)
+    error = ""
+    try:
+        error = character.GetCharacterizeError()
+    except Exception:
+        error = ""
+    return result, error
+
+
 def _definition_store_load():
     path = _definition_store_path()
     if not os.path.isfile(path):
@@ -3583,6 +3615,8 @@ def load_character_definition(name):
     missing = []
     used_models = set()
     for slot_name, saved_model_name in links.items():
+        if slot_name in ROLL_LINK_SLOTS:
+            continue
         model = _find_definition_model(saved_model_name, slot_name, indexed)
         if model is None or _component_long_name(model) in used_models:
             missing.append(slot_name)
@@ -3593,11 +3627,8 @@ def load_character_definition(name):
             used_models.add(model_name)
     characterize_result = False
     characterize_error = ""
-    try:
-        characterize_result = bool(character.SetCharacterizeOn(True))
-        characterize_error = character.GetCharacterizeError()
-    except Exception as exc:
-        characterize_error = str(exc)
+    _clear_roll_links(character)
+    characterize_result, characterize_error = _set_characterized(character, True)
     result = {
         "ok": True,
         "name": definition_name,
@@ -3750,6 +3781,8 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
     mapped = OrderedDict()
     used_models = set()
     for slot_name in CHARACTER_SLOT_CANDIDATES:
+        if slot_name in ROLL_LINK_SLOTS:
+            continue
         model = _slot_match_for_index(slot_name, indexed, used_models=used_models)
         if model is None:
             continue
@@ -3763,8 +3796,8 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
     characterize_error = None
     control_rig_result = None
     if characterize:
-        characterize_result = bool(character.SetCharacterizeOn(True))
-        characterize_error = character.GetCharacterizeError()
+        _clear_roll_links(character)
+        characterize_result, characterize_error = _set_characterized(character, True)
     if create_control_rig and character.GetCharacterize():
         try:
             control_rig_result = bool(character.CreateControlRig(True))
@@ -4133,10 +4166,16 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
     if error:
         _append_status(error["error"])
         return error
-    if not character.GetCharacterize():
+    was_characterized = bool(character.GetCharacterize())
+    if not was_characterized:
         result = {"ok": False, "error": "Current character is not characterized. Auto Map Skeleton first."}
         _append_status(result["error"])
         return result
+    try:
+        character.SetCharacterizeOn(False)
+    except Exception:
+        pass
+    cleared_roll_links = _clear_roll_links(character)
 
     player = FBPlayerControl()
     frame_zero = FBTime(0, 0, 0, 0)
@@ -4149,6 +4188,12 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
             pass
     _evaluate_scene()
     aligned_segments = _apply_skeleton_tpose(character)
+    try:
+        character.GoToStancePose(True, True)
+        _evaluate_scene()
+    except Exception:
+        pass
+    characterize_result, characterize_error = _set_characterized(character, True)
 
     keyed_models = 0
     keyed_channels = 0
@@ -4184,18 +4229,26 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
         "keyed_models": keyed_models,
         "keyed_channels": keyed_channels,
         "characterized": bool(character.GetCharacterize()),
-        "stance_pose_ok": False,
+        "stance_pose_ok": bool(character.GetCharacterize()) and not bool(characterize_error),
         "aligned_segments": aligned_segments,
+        "cleared_roll_links": cleared_roll_links,
+        "characterize_result": characterize_result,
+        "characterize_error": characterize_error,
     }
     _append_status(
-        "T-Pose Frame 0 keyed {0} on {1}: skeleton T-pose at frame 0 only, {2} segment(s), {3} model(s), {4} channel key(s).".format(
+        "T-Pose Frame 0 keyed {0} on {1}: skeleton T-pose at frame 0 only, {2} segment(s), {3} model(s), {4} channel key(s), green check {5}.".format(
             character.LongName,
             selected_skeleton_scope_label(),
             aligned_segments,
             keyed_models,
             keyed_channels,
+            bool(character.GetCharacterize()) and not bool(characterize_error),
         )
     )
+    if characterize_error:
+        clean_warning = _sanitize_motionbuilder_warning_text(characterize_error)
+        if clean_warning:
+            _append_status("MotionBuilder warnings: {0}".format(clean_warning.replace("\n", " | ")))
     return result
 
 

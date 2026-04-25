@@ -2,6 +2,7 @@
 
 ## 2026-04-25
 
+- Fixed Auto Map and T-Pose characterization so roll-bone links are cleared, optional roll slots are no longer auto-mapped, and T-Pose Frame 0 re-characterizes after setting stance so the Definition tab can turn fully green
 - Fixed Auto Map character naming so new skeleton definitions increment from existing `animate_auto_1`, `animate_auto_2`, etc. instead of reusing the current generated character for a different skeleton
 - Improved Auto Map Skeleton so selecting any number of bones or a skinned mesh automatically selects the matching skeleton hierarchy, with clear UI instructions and no required Use Selected Skeleton step
 - Replaced the stale MotionBuilder theme restore with a deterministic dark native-style host fallback so the File/Edit toolbar and standard buttons no longer drop to the old Windows-style chrome
