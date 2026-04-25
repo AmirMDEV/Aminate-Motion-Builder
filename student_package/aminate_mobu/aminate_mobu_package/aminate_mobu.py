@@ -1068,6 +1068,14 @@ def ensure_default_ui_snapshot(main=None, force=False):
     return capture_current_ui_snapshot(main=main, snapshot_path=snapshot_path)
 
 
+def ensure_native_default_ui_snapshot(main=None, force=False):
+    app = _qt_application()
+    current_stylesheet = app.styleSheet() if app is not None else ""
+    if _APP_THEME_OWNED or _theme_string_is_modern(current_stylesheet):
+        return _default_ui_snapshot_path() if os.path.isfile(_default_ui_snapshot_path()) else None
+    return ensure_default_ui_snapshot(main=main, force=force)
+
+
 def _restore_saved_ui_snapshot(main=None, snapshot_path=None):
     main = main or _qt_host_main_window()
     if main is None:
@@ -1840,7 +1848,7 @@ def _apply_app_theme(theme_key):
     if app is None:
         return False
     theme_key = _normalize_theme_key(theme_key)
-    prime_app_theme_baseline(force_reset=theme_key == THEME_MOTIONBUILDER)
+    prime_app_theme_baseline()
     if theme_key == THEME_MOTIONBUILDER:
         try:
             if _APP_THEME_BASELINE_STYLE:
@@ -1855,8 +1863,6 @@ def _apply_app_theme(theme_key):
         app.setStyleSheet(_APP_THEME_BASELINE or "")
         _APP_THEME_OWNED = False
         _store_baseline_on_app(app)
-        _refresh_qt_theme()
-        _restore_saved_ui_snapshot()
         _refresh_qt_theme()
         return True
     try:
@@ -2005,7 +2011,7 @@ def _ensure_aminate_launcher_toolbar():
 
 def ensure_motionbuilder_ui_entry():
     prime_app_theme_baseline()
-    ensure_default_ui_snapshot()
+    ensure_native_default_ui_snapshot(force=True)
     toolbar = _ensure_aminate_launcher_toolbar()
     install_easy_motionbuilder_tooltips()
     return toolbar
@@ -2049,7 +2055,7 @@ if MODULE_ROOT not in sys.path:
 def _boot():
     import aminate_mobu
     importlib.reload(aminate_mobu)
-    aminate_mobu.ensure_motionbuilder_ui_entry()
+    aminate_mobu.launch_aminate_mobu()
 try:
     from PySide6 import QtCore
 except Exception:
@@ -4683,9 +4689,10 @@ def launch_aminate_mobu():
     global _QT_TOOL
     global _QT_DOCK
     global _TOOL
-    set_active_theme(THEME_MODERN)
     install_runtime_watchers()
-    ensure_default_ui_snapshot()
+    prime_app_theme_baseline()
+    ensure_native_default_ui_snapshot(force=True)
+    set_active_theme(THEME_MODERN)
     _ensure_aminate_launcher_toolbar()
     install_easy_motionbuilder_tooltips()
     if QtWidgets is not None and hasattr(_qt_host_main_window(), "addDockWidget"):

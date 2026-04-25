@@ -35,7 +35,7 @@ if MODULE_ROOT not in sys.path:
 def _boot():
     import aminate_mobu
     importlib.reload(aminate_mobu)
-    aminate_mobu.ensure_motionbuilder_ui_entry()
+    aminate_mobu.launch_aminate_mobu()
 try:
     from PySide6 import QtCore
 except Exception:
