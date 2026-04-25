@@ -75,4 +75,4 @@
 - Added quick install instructions to the release notes for the GitHub Releases page.
 - Added the public Aminate 0.1 Beta release notes, public README, screenshot references, and drag/drop MotionBuilder installer flow.
 - Added `Install_Aminate_Motion_Builder.py` to the install files package so users can drag the installer into the MotionBuilder viewport.
-- Updated the source-available license repository link to `https://github.com/AmirMDEV/Aminate`.
+- Updated the source-available license repository link to `https://github.com/AmirMDEV/Aminate-Motion-Builder`.
