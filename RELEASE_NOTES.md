@@ -4,11 +4,12 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 
 ## Quick Install
 
-1. Download `Aminate_Mobu_v0.1_BETA.zip` from this release.
+1. Download `Aminate_Motion_Builder_v0.1_BETA.zip` from this release.
 2. Unzip it.
-3. Drag `Install_Aminate_Mobu.py` into the MotionBuilder viewport.
-4. Aminate opens immediately and installs its startup hook for future MotionBuilder launches.
-5. Restart MotionBuilder if you want to confirm Aminate loads automatically.
+3. Open the `Aminate_Motion_Builder_Install_Files` folder.
+4. Drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport.
+5. Aminate opens immediately and installs its startup hook for future MotionBuilder launches.
+6. Restart MotionBuilder if you want to confirm Aminate loads automatically.
 
 ## Premiere Video
 
@@ -22,7 +23,7 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 
 ## What Aminate Can Do
 
-- **Drag and drop installer**: unzip the release, then drag `Install_Aminate_Mobu.py` into the MotionBuilder viewport. Aminate installs the startup hook, opens the panel, and loads on future MotionBuilder launches.
+- **Drag and drop installer**: unzip the release, open the install folder, then drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport. Aminate installs the startup hook, opens the panel, and loads on future MotionBuilder launches.
 - **Scene Cleaner**: removes common import junk, user cameras, and unused unlabeled markers while preserving markers that appear to carry useful prop animation.
 - **Auto Map Skeleton**: reads the selected skeleton, bone, or skinned mesh and creates numbered MotionBuilder character definitions such as `animate_auto_1`, `animate_auto_2`, and `animate_auto_3`.
 - **T-Pose Frame 0**: keys a MotionBuilder-friendly T-pose on frame 0 so source and target characters can be prepared for cleaner retargeting.
@@ -34,11 +35,12 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 
 ## How To Install
 
-1. Download `Aminate_Mobu_v0.1_BETA.zip`.
+1. Download `Aminate_Motion_Builder_v0.1_BETA.zip`.
 2. Unzip it somewhere convenient.
-3. Drag `Install_Aminate_Mobu.py` into the MotionBuilder viewport.
-4. Accept the install message.
-5. Restart MotionBuilder when you want to confirm Aminate loads automatically.
+3. Open the `Aminate_Motion_Builder_Install_Files` folder.
+4. Drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport.
+5. Accept the install message.
+6. Restart MotionBuilder when you want to confirm Aminate loads automatically.
 
 ## How To Use
 

@@ -8,7 +8,7 @@ import traceback
 
 PACKAGE_NAME = "Aminate Motion Builder"
 INSTALL_VERSION = "v0.1-beta"
-PAYLOAD_FOLDER = "aminate_mobu_package"
+PAYLOAD_FOLDER = "install_files"
 
 
 def _message(title, text):
@@ -38,7 +38,7 @@ def _payload_dir(package_dir):
     if os.path.isfile(os.path.join(package_dir, "aminate_mobu.py")):
         return package_dir
     raise RuntimeError(
-        "Could not find {0}. Keep Install_Aminate_Mobu.py beside the {0} folder, then drag it into MotionBuilder again.".format(
+        "Could not find {0}. Keep Install_Aminate_Motion_Builder.py beside the {0} folder, then drag it into MotionBuilder again.".format(
             PAYLOAD_FOLDER
         )
     )

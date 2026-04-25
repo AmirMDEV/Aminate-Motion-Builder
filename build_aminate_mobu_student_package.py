@@ -6,14 +6,14 @@ import shutil
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent
-PACKAGE_ROOT = REPO_ROOT / "student_package" / "aminate_mobu"
-PAYLOAD_ROOT = PACKAGE_ROOT / "aminate_mobu_package"
-ZIP_PATH = REPO_ROOT / "student_package" / "Aminate_Mobu_v0.1_BETA.zip"
+PACKAGE_ROOT = REPO_ROOT / "student_package" / "Aminate_Motion_Builder_Install_Files"
+PAYLOAD_ROOT = PACKAGE_ROOT / "install_files"
+ZIP_PATH = REPO_ROOT / "student_package" / "Aminate_Motion_Builder_v0.1_BETA.zip"
 MANIFEST_FILE_NAME = "manifest.json"
 LICENSE_FILE_NAME = "LICENSE"
 RELEASE_VERSION_LABEL = "Version 0.1 BETA"
 RELEASE_TAG = "v0.1-beta"
-PUBLIC_REPO_URL = "https://github.com/AmirMDEV/Aminate"
+PUBLIC_REPO_URL = "https://github.com/AmirMDEV/Aminate-Motion-Builder"
 FOLLOW_AMIR_URL = "https://followamir.com"
 DONATE_URL = "https://www.paypal.com/donate/?hosted_button_id=2U2GXSKFJKJCA"
 RUNTIME_FILES = [
@@ -23,6 +23,8 @@ RUNTIME_FILES = [
     "launch_aminate_mobu.py",
 ]
 DRAG_DROP_INSTALLER = "install_aminate_mobu_dragdrop.py"
+DRAG_DROP_INSTALLER_NAME = "Install_Aminate_Motion_Builder.py"
+INSTALL_FILES_FOLDER = "install_files"
 ASSET_DIRS = [
     "assets",
 ]
@@ -44,16 +46,18 @@ def build_student_package():
     PAYLOAD_ROOT.mkdir(parents=True, exist_ok=True)
     if ZIP_PATH.exists():
         ZIP_PATH.unlink()
+    old_zip_path = REPO_ROOT / "student_package" / "Aminate_Mobu_v0.1_BETA.zip"
+    if old_zip_path.exists():
+        old_zip_path.unlink()
 
     for file_name in RUNTIME_FILES:
         shutil.copy2(str(REPO_ROOT / file_name), str(PAYLOAD_ROOT / file_name))
-    shutil.copy2(str(REPO_ROOT / DRAG_DROP_INSTALLER), str(PACKAGE_ROOT / "Install_Aminate_Mobu.py"))
+    shutil.copy2(str(REPO_ROOT / DRAG_DROP_INSTALLER), str(PACKAGE_ROOT / DRAG_DROP_INSTALLER_NAME))
     for dir_name in ASSET_DIRS:
         source_dir = REPO_ROOT / dir_name
         if source_dir.exists():
             shutil.copytree(str(source_dir), str(PAYLOAD_ROOT / dir_name), dirs_exist_ok=True)
     shutil.copy2(str(REPO_ROOT / LICENSE_FILE_NAME), str(PAYLOAD_ROOT / LICENSE_FILE_NAME))
-    shutil.copy2(str(REPO_ROOT / LICENSE_FILE_NAME), str(PACKAGE_ROOT / LICENSE_FILE_NAME))
 
     manifest = {
         "package_name": "Aminate Motion Builder",
@@ -65,7 +69,8 @@ def build_student_package():
         "follow_amir": FOLLOW_AMIR_URL,
         "donation_url": DONATE_URL,
         "runtime_files": list(RUNTIME_FILES),
-        "drag_drop_installer": "Install_Aminate_Mobu.py",
+        "drag_drop_installer": DRAG_DROP_INSTALLER_NAME,
+        "install_files_folder": INSTALL_FILES_FOLDER,
         "asset_dirs": list(ASSET_DIRS),
     }
     with (PAYLOAD_ROOT / MANIFEST_FILE_NAME).open("w", encoding="utf-8", newline="\n") as handle:
@@ -73,17 +78,22 @@ def build_student_package():
         handle.write("\n")
 
     readme_lines = [
-        "Aminate Motion Builder student package",
+        "Aminate Motion Builder install files",
         "",
         "Fast install in MotionBuilder:",
         "1. Unzip this package.",
-        "2. Drag Install_Aminate_Mobu.py into the MotionBuilder viewport.",
-        "3. Aminate installs its startup hook, opens the Aminate panel, and switches to the Modern UI.",
+        "2. Open the Aminate_Motion_Builder_Install_Files folder.",
+        "3. Drag Install_Aminate_Motion_Builder.py into the MotionBuilder viewport.",
+        "4. Aminate installs its startup hook, opens the Aminate panel, and switches to the Modern UI.",
+        "",
+        "Package layout:",
+        "- Main folder: only the drag-and-drop installer file plus the install_files folder.",
+        "- install_files: all runtime scripts, assets, license, manifest, and this README.",
         "",
         "Manual fallback:",
         "1. Open Python Tools or the Python Editor in MotionBuilder.",
-        "2. Run aminate_mobu_package\\install_motionbuilder_startup.py to install the startup hook.",
-        "3. Run aminate_mobu_package\\launch_aminate_mobu.py to open Aminate immediately.",
+        "2. Run install_files\\install_motionbuilder_startup.py to install the startup hook.",
+        "3. Run install_files\\launch_aminate_mobu.py to open Aminate immediately.",
         "",
         "Current functions:",
         "- Scene Cleaner removes junk scene objects, user cameras, and unused unlabeled markers while preserving useful animated prop markers.",
@@ -102,7 +112,7 @@ def build_student_package():
         "Donate: {0}".format(DONATE_URL),
         "Full license: see LICENSE",
     ]
-    with (PACKAGE_ROOT / "README.txt").open("w", encoding="utf-8", newline="\n") as handle:
+    with (PAYLOAD_ROOT / "README.txt").open("w", encoding="utf-8", newline="\n") as handle:
         handle.write("\n".join(readme_lines))
         handle.write("\n")
 
@@ -112,7 +122,7 @@ def build_student_package():
 
 def main():
     manifest = build_student_package()
-    print("Built student package at {0}".format(PACKAGE_ROOT))
+    print("Built install files at {0}".format(PACKAGE_ROOT))
     print("Version: {0}".format(manifest["version"]))
     print("Zip: {0}".format(ZIP_PATH))
     return 0

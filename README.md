@@ -6,36 +6,37 @@ This is the public beta repository for **Aminate Motion Builder 0.1 Beta**.
 
 ## Install
 
-1. Download the latest release zip: `Aminate_Mobu_v0.1_BETA.zip`.
+1. Download the latest release zip: `Aminate_Motion_Builder_v0.1_BETA.zip`.
 2. Unzip it.
-3. Drag `Install_Aminate_Mobu.py` into the MotionBuilder viewport.
-4. Aminate installs its startup hook, opens the Aminate panel, and loads automatically on future MotionBuilder launches.
+3. Open the `Aminate_Motion_Builder_Install_Files` folder.
+4. Drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport.
+5. Aminate installs its startup hook, opens the Aminate panel, and loads automatically on future MotionBuilder launches.
 
 Manual fallback:
 
 1. Open MotionBuilder's Python Editor.
-2. Run `aminate_mobu_package/install_motionbuilder_startup.py`.
-3. Run `aminate_mobu_package/launch_aminate_mobu.py`.
+2. Run `install_files/install_motionbuilder_startup.py`.
+3. Run `install_files/launch_aminate_mobu.py`.
 
 ## Feature Videos
 
 ### Premiere: 40 Seconds To Mocap
 
-<video src="https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/40_Seconds_to_Mocap.mp4" controls muted playsinline width="100%"></video>
+<video src="https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/40_Seconds_to_Mocap.mp4" controls muted playsinline width="100%"></video>
 
-[Open the premiere video](https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/40_Seconds_to_Mocap.mp4)
+[Open the premiere video](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/40_Seconds_to_Mocap.mp4)
 
 ### Auto Map Skeleton And T-Pose Frame 0
 
-<video src="https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/Mobu_Automap_and_Tpose.mp4" controls muted playsinline width="100%"></video>
+<video src="https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/Mobu_Automap_and_Tpose.mp4" controls muted playsinline width="100%"></video>
 
-[Open the Auto Map and T-Pose video](https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/Mobu_Automap_and_Tpose.mp4)
+[Open the Auto Map and T-Pose video](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/Mobu_Automap_and_Tpose.mp4)
 
 ### Scene Cleaner
 
-<video src="https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/Mobu_Scene_Cleaner.mp4" controls muted playsinline width="100%"></video>
+<video src="https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/Mobu_Scene_Cleaner.mp4" controls muted playsinline width="100%"></video>
 
-[Open the Scene Cleaner video](https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/Mobu_Scene_Cleaner.mp4)
+[Open the Scene Cleaner video](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/Mobu_Scene_Cleaner.mp4)
 
 ## Screenshots
 

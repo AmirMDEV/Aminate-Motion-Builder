@@ -1,14 +1,19 @@
-Aminate Motion Builder student package
+Aminate Motion Builder install files
 
 Fast install in MotionBuilder:
 1. Unzip this package.
-2. Drag Install_Aminate_Mobu.py into the MotionBuilder viewport.
-3. Aminate installs its startup hook, opens the Aminate panel, and switches to the Modern UI.
+2. Open the Aminate_Motion_Builder_Install_Files folder.
+3. Drag Install_Aminate_Motion_Builder.py into the MotionBuilder viewport.
+4. Aminate installs its startup hook, opens the Aminate panel, and switches to the Modern UI.
+
+Package layout:
+- Main folder: only the drag-and-drop installer file plus the install_files folder.
+- install_files: all runtime scripts, assets, license, manifest, and this README.
 
 Manual fallback:
 1. Open Python Tools or the Python Editor in MotionBuilder.
-2. Run aminate_mobu_package\install_motionbuilder_startup.py to install the startup hook.
-3. Run aminate_mobu_package\launch_aminate_mobu.py to open Aminate immediately.
+2. Run install_files\install_motionbuilder_startup.py to install the startup hook.
+3. Run install_files\launch_aminate_mobu.py to open Aminate immediately.
 
 Current functions:
 - Scene Cleaner removes junk scene objects, user cameras, and unused unlabeled markers while preserving useful animated prop markers.
@@ -22,7 +27,7 @@ Current functions:
 - Startup install targets all detected MotionBuilder version folders under Documents\MB.
 
 Credit: Amir Mansaray
-GitHub: https://github.com/AmirMDEV/Aminate
+GitHub: https://github.com/AmirMDEV/Aminate-Motion-Builder
 Follow Amir: https://followamir.com
 Donate: https://www.paypal.com/donate/?hosted_button_id=2U2GXSKFJKJCA
 Full license: see LICENSE

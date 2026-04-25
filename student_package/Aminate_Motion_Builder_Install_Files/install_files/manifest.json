@@ -4,7 +4,7 @@
   "release_tag": "v0.1-beta",
   "license": "Aminate Proprietary Source-Available License",
   "license_file": "LICENSE",
-  "public_repository": "https://github.com/AmirMDEV/Aminate",
+  "public_repository": "https://github.com/AmirMDEV/Aminate-Motion-Builder",
   "follow_amir": "https://followamir.com",
   "donation_url": "https://www.paypal.com/donate/?hosted_button_id=2U2GXSKFJKJCA",
   "runtime_files": [
@@ -13,7 +13,8 @@
     "install_motionbuilder_startup.py",
     "launch_aminate_mobu.py"
   ],
-  "drag_drop_installer": "Install_Aminate_Mobu.py",
+  "drag_drop_installer": "Install_Aminate_Motion_Builder.py",
+  "install_files_folder": "install_files",
   "asset_dirs": [
     "assets"
   ]
