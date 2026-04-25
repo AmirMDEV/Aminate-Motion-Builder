@@ -2,6 +2,7 @@
 
 ## 2026-04-25
 
+- Added compressed animated constraint tutorial GIF previews with a hover/selection preview panel in Constraints Manager plus a reusable generator script for refreshing the demo assets
 - Filtered Constraints Manager to show only user-facing asset-browser constraints such as Position, Rotation, Aim, Parent-Child, Relation, Chain IK, Spline IK, Expression, Path, and Rigid Body, while hiding HIK solvers and character internals
 - Added selected-skeleton scoping so Aminate requires a chosen skeleton hierarchy in multi-skeleton scenes, then Auto Map and T-Pose operate only on that selected hierarchy
 - Added a Constraints Manager panel for listing MotionBuilder constraints, renaming user constraints to readable Aminate names, keying useful constraint properties at the current time, opening bake/plot options, and using clearer Save To Skeleton / Save To Control Rig language

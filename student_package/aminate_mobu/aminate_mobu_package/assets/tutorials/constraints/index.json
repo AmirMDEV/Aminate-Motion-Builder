@@ -1,0 +1,77 @@
+{
+  "position": {
+    "title": "Position",
+    "description": "Copies location only",
+    "file": "position.gif"
+  },
+  "rotation": {
+    "title": "Rotation",
+    "description": "Copies turning only",
+    "file": "rotation.gif"
+  },
+  "scale": {
+    "title": "Scale",
+    "description": "Copies size changes",
+    "file": "scale.gif"
+  },
+  "aim": {
+    "title": "Aim",
+    "description": "Points object at target",
+    "file": "aim.gif"
+  },
+  "parentchild": {
+    "title": "Parent-Child",
+    "description": "Follows parent space",
+    "file": "parentchild.gif"
+  },
+  "relation": {
+    "title": "Relation",
+    "description": "Logic boxes drive values",
+    "file": "relation.gif"
+  },
+  "chainik": {
+    "title": "Chain IK",
+    "description": "IK handle bends chain",
+    "file": "chainik.gif"
+  },
+  "splineik": {
+    "title": "Spline IK",
+    "description": "Curve bends chain",
+    "file": "splineik.gif"
+  },
+  "path": {
+    "title": "Path",
+    "description": "Object follows path",
+    "file": "path.gif"
+  },
+  "expression": {
+    "title": "Expression",
+    "description": "Formula drives motion",
+    "file": "expression.gif"
+  },
+  "range": {
+    "title": "Range",
+    "description": "Limits or remaps values",
+    "file": "range.gif"
+  },
+  "mapping": {
+    "title": "Mapping",
+    "description": "Maps one rig to another",
+    "file": "mapping.gif"
+  },
+  "multireferential": {
+    "title": "Multi-Referential",
+    "description": "Switches parent spaces",
+    "file": "multireferential.gif"
+  },
+  "threepoints": {
+    "title": "3 Points",
+    "description": "Builds plane from 3 markers",
+    "file": "threepoints.gif"
+  },
+  "rigidbody": {
+    "title": "Rigid Body",
+    "description": "Physics collision style",
+    "file": "rigidbody.gif"
+  }
+}

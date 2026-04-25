@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 4
+QT_PANEL_BUILD_VERSION = 5
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -2665,6 +2665,42 @@ def _constraint_identifiers(constraint):
     return [_normalize_name(value) for value in values if value]
 
 
+def _constraint_tutorial_index_path():
+    return os.path.join(_module_root_dir(), "assets", "tutorials", "constraints", "index.json")
+
+
+def _constraint_tutorial_index():
+    path = _constraint_tutorial_index_path()
+    if not os.path.isfile(path):
+        return OrderedDict()
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle, object_pairs_hook=OrderedDict)
+    except Exception:
+        return OrderedDict()
+    return OrderedDict(payload)
+
+
+def _constraint_tutorial_key_from_identifiers(identifiers):
+    for token in USER_CONSTRAINT_KIND_TOKENS:
+        if any(token in identifier for identifier in identifiers):
+            if token == "3points":
+                return "threepoints"
+            return token
+    return ""
+
+
+def _constraint_tutorial_key(constraint):
+    return _constraint_tutorial_key_from_identifiers(_constraint_identifiers(constraint))
+
+
+def _constraint_tutorial_asset_path(key):
+    index = _constraint_tutorial_index()
+    item = index.get(key) or {}
+    file_name = item.get("file") or "{0}.gif".format(key)
+    return os.path.join(_module_root_dir(), "assets", "tutorials", "constraints", file_name)
+
+
 def _is_system_constraint(constraint):
     identifiers = _constraint_identifiers(constraint)
     return any("solver" in item or "hik" in item or "character" in item for item in identifiers)
@@ -2680,7 +2716,7 @@ def _is_user_facing_constraint(constraint):
     if _is_system_constraint(constraint):
         return False
     identifiers = _constraint_identifiers(constraint)
-    return any(token in identifier for token in USER_CONSTRAINT_KIND_TOKENS for identifier in identifiers)
+    return bool(_constraint_tutorial_key_from_identifiers(identifiers))
 
 
 def _actionable_constraints(constraints=None):
@@ -4225,6 +4261,9 @@ if QtWidgets:
             self.constraints_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
             self.constraints_table.setToolTip("Select constraints here, then rename or key them.")
             self.constraints_table.setMinimumHeight(92)
+            self.constraints_table.setMouseTracking(True)
+            self.constraints_table.itemEntered.connect(self._preview_constraint_table_item)
+            self.constraints_table.itemSelectionChanged.connect(self._preview_selected_constraint)
             try:
                 self.constraints_table.horizontalHeader().setStretchLastSection(True)
             except Exception:
@@ -4242,6 +4281,27 @@ if QtWidgets:
             button_grid.addWidget(self._action_button("Save To Skeleton", self._save_to_skeleton), 1, 1)
             button_grid.addWidget(self._action_button("Save To Control Rig", self._save_to_control_rig), 1, 2)
             layout.addLayout(button_grid)
+
+            preview_row = QtWidgets.QHBoxLayout()
+            preview_row.setSpacing(6)
+            self.constraint_tutorial_combo = QtWidgets.QComboBox()
+            self.constraint_tutorial_combo.setToolTip("Pick a constraint demo preview.")
+            preview_row.addWidget(self.constraint_tutorial_combo, 1)
+            self.constraint_tutorial_combo.currentIndexChanged.connect(self._preview_constraint_combo)
+            layout.addLayout(preview_row)
+
+            self.constraint_preview_title = QtWidgets.QLabel("Hover a constraint or pick a demo.")
+            self.constraint_preview_title.setObjectName("mayaAnimWorkflowIntroTitle")
+            layout.addWidget(self.constraint_preview_title)
+            self.constraint_preview = QtWidgets.QLabel()
+            self.constraint_preview.setObjectName("aminateMobuConstraintPreview")
+            self.constraint_preview.setMinimumSize(320, 180)
+            self.constraint_preview.setAlignment(QtCore.Qt.AlignCenter)
+            self.constraint_preview.setToolTip("Animated constraint tutorial preview.")
+            layout.addWidget(self.constraint_preview)
+            self._constraint_preview_movie = None
+            self._constraint_preview_key = ""
+            self._populate_constraint_tutorial_combo()
 
             self.constraints_recommendations = QtWidgets.QLabel("\n".join(CONSTRAINT_RECOMMENDATIONS))
             self.constraints_recommendations.setObjectName("aminateMobuGroupHint")
@@ -4373,6 +4433,63 @@ if QtWidgets:
                 pass
             _append_status("Constraints Manager listed {0} constraint(s).".format(len(rows)))
             _refresh_dashboard()
+
+        def _populate_constraint_tutorial_combo(self):
+            combo = getattr(self, "constraint_tutorial_combo", None)
+            if combo is None:
+                return
+            combo.blockSignals(True)
+            combo.clear()
+            for key, item in _constraint_tutorial_index().items():
+                combo.addItem(item.get("title", key), key)
+            combo.blockSignals(False)
+            if combo.count():
+                self._preview_constraint_key(str(combo.itemData(0)))
+
+        def _preview_constraint_key(self, key):
+            if not key or key == getattr(self, "_constraint_preview_key", ""):
+                return
+            path = _constraint_tutorial_asset_path(key)
+            index = _constraint_tutorial_index()
+            item = index.get(key, {})
+            title = item.get("title", key)
+            description = item.get("description", "")
+            if getattr(self, "constraint_preview_title", None) is not None:
+                self.constraint_preview_title.setText("{0}: {1}".format(title, description))
+            if not os.path.isfile(path) or getattr(self, "constraint_preview", None) is None:
+                if getattr(self, "constraint_preview", None) is not None:
+                    self.constraint_preview.setText("No preview found for {0}".format(title))
+                return
+            if getattr(self, "_constraint_preview_movie", None) is not None:
+                self._constraint_preview_movie.stop()
+            movie = QtGui.QMovie(path)
+            movie.setCacheMode(QtGui.QMovie.CacheAll)
+            movie.setScaledSize(QtCore.QSize(320, 180))
+            self.constraint_preview.setMovie(movie)
+            movie.start()
+            self._constraint_preview_movie = movie
+            self._constraint_preview_key = key
+
+        def _preview_constraint_table_item(self, item):
+            row = item.row() if item is not None else -1
+            objects = getattr(self, "_constraint_row_objects", [])
+            if 0 <= row < len(objects):
+                self._preview_constraint_key(_constraint_tutorial_key(objects[row]))
+
+        def _preview_selected_constraint(self):
+            table = getattr(self, "constraints_table", None)
+            if table is None:
+                return
+            rows = sorted({index.row() for index in table.selectionModel().selectedRows()})
+            objects = getattr(self, "_constraint_row_objects", [])
+            if rows and 0 <= rows[0] < len(objects):
+                self._preview_constraint_key(_constraint_tutorial_key(objects[rows[0]]))
+
+        def _preview_constraint_combo(self, index):
+            combo = getattr(self, "constraint_tutorial_combo", None)
+            if combo is None or index < 0:
+                return
+            self._preview_constraint_key(str(combo.itemData(index)))
 
         def _selected_constraints_from_table(self):
             table = getattr(self, "constraints_table", None)
