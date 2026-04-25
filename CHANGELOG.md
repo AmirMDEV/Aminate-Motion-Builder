@@ -67,3 +67,8 @@
 - Added automatic one-time baseline layout capture on Aminate startup plus a no-input UIA reference capture tool for the currently open MotionBuilder window
 - Added a telnet-friendly live verification helper that proves the captured current MotionBuilder layout restores after switching to Modern and back
 - Captured a pure host MotionBuilder full-window reference without Aminate open and generated a modern full-window concept mock that preserves the same layout while modernizing iconography and chrome
+# 2026-04-25
+
+- Added the public Aminate 0.1 Beta release notes, public README, screenshot references, and drag/drop MotionBuilder installer flow.
+- Added `Install_Aminate_Mobu.py` to the student package so users can drag the installer into the MotionBuilder viewport.
+- Updated the source-available license repository link to `https://github.com/AmirMDEV/Aminate`.

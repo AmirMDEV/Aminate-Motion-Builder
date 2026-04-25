@@ -13,7 +13,7 @@ MANIFEST_FILE_NAME = "manifest.json"
 LICENSE_FILE_NAME = "LICENSE"
 RELEASE_VERSION_LABEL = "Version 0.1 BETA"
 RELEASE_TAG = "v0.1-beta"
-PUBLIC_REPO_URL = "https://github.com/AmirMDEV/aminate-public"
+PUBLIC_REPO_URL = "https://github.com/AmirMDEV/Aminate"
 FOLLOW_AMIR_URL = "https://followamir.com"
 DONATE_URL = "https://www.paypal.com/donate/?hosted_button_id=2U2GXSKFJKJCA"
 RUNTIME_FILES = [
@@ -22,6 +22,7 @@ RUNTIME_FILES = [
     "install_motionbuilder_startup.py",
     "launch_aminate_mobu.py",
 ]
+DRAG_DROP_INSTALLER = "install_aminate_mobu_dragdrop.py"
 ASSET_DIRS = [
     "assets",
 ]
@@ -46,6 +47,7 @@ def build_student_package():
 
     for file_name in RUNTIME_FILES:
         shutil.copy2(str(REPO_ROOT / file_name), str(PAYLOAD_ROOT / file_name))
+    shutil.copy2(str(REPO_ROOT / DRAG_DROP_INSTALLER), str(PACKAGE_ROOT / "Install_Aminate_Mobu.py"))
     for dir_name in ASSET_DIRS:
         source_dir = REPO_ROOT / dir_name
         if source_dir.exists():
@@ -63,6 +65,7 @@ def build_student_package():
         "follow_amir": FOLLOW_AMIR_URL,
         "donation_url": DONATE_URL,
         "runtime_files": list(RUNTIME_FILES),
+        "drag_drop_installer": "Install_Aminate_Mobu.py",
         "asset_dirs": list(ASSET_DIRS),
     }
     with (PAYLOAD_ROOT / MANIFEST_FILE_NAME).open("w", encoding="utf-8", newline="\n") as handle:
@@ -72,18 +75,25 @@ def build_student_package():
     readme_lines = [
         "Aminate Mobu student package",
         "",
-        "How to run in MotionBuilder:",
+        "Fast install in MotionBuilder:",
         "1. Unzip this package.",
-        "2. In MotionBuilder open Python Tools or the Python Editor.",
-        "3. Run install_motionbuilder_startup.py if you want the startup hook written into every detected MotionBuilder version folder.",
-        "4. Run launch_aminate_mobu.py for an immediate launch.",
-        "5. The Aminate Mobu tool window opens with Scene Cleaner, Auto Map, warning helpers, and a History Timeline launcher.",
+        "2. Drag Install_Aminate_Mobu.py into the MotionBuilder viewport.",
+        "3. Aminate installs its startup hook, opens the Aminate panel, and switches to the Modern UI.",
+        "",
+        "Manual fallback:",
+        "1. Open Python Tools or the Python Editor in MotionBuilder.",
+        "2. Run aminate_mobu_package\\install_motionbuilder_startup.py to install the startup hook.",
+        "3. Run aminate_mobu_package\\launch_aminate_mobu.py to open Aminate immediately.",
         "",
         "Current functions:",
-        "- Scene Cleaner deletes user cameras, preserves animated default prop markers, and renames those preserved markers with your chosen base name.",
-        "- Auto Map creates a MotionBuilder character from the best skeleton namespace and tries to characterize through fingers, feet, and extra spine links.",
-        "- Popup warnings cover unlocked character definitions and wrong control-rig keying mode.",
-        "- History Timeline saves full-scene MotionBuilder snapshots beside the current writable FBX scene, supports restore, milestones, branching, snapshot caps, and Auto History.",
+        "- Scene Cleaner removes junk scene objects, user cameras, and unused unlabeled markers while preserving useful animated prop markers.",
+        "- Auto Map Skeleton reads the selected skeleton, bone, or mesh, creates animate_auto_1, animate_auto_2, etc., and fills a HumanIK character definition.",
+        "- T-Pose Frame 0 keys a MotionBuilder-friendly T-pose on frame 0 for retargeting and character-definition cleanup.",
+        "- Definition Manager saves, loads, renames, and removes reusable skeleton definitions.",
+        "- Constraints Manager lists useful MotionBuilder constraints, explains when to use them, helps rename them, keys them, and opens bake/plot options.",
+        "- History Timeline saves full-scene MotionBuilder snapshots with restore, milestones, branching, snapshot caps, and Auto History.",
+        "- Modern UI restyles Aminate and themeable MotionBuilder chrome while keeping the default MotionBuilder UI restore path available.",
+        "- Rich tooltips explain buttons and tool icons in plain language.",
         "- Startup install targets all detected MotionBuilder version folders under Documents\\MB.",
         "",
         "Credit: Amir Mansaray",
