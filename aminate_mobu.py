@@ -114,6 +114,7 @@ DEFAULT_PROP_MARKER_BASE_NAME = "Prop"
 UNLABELLED_MARKER_PATTERN = re.compile(r"^(marker|tmpmarker|unnamedmarker)(?:\s+\d+)?$", re.IGNORECASE)
 CONTROL_RIG_PROPERTY_NAMES = {"Lcl Translation", "Lcl Rotation"}
 TPOSE_AXIS_DOT_THRESHOLD = 0.995
+TPOSE_ALIGN_FINGERS = False
 EASY_TOOLTIP_TEXT = {
     "Aminate": "Open Aminate Mobu tools.",
     "File": "Open files, save work, import, export, and close the scene.",
@@ -3769,6 +3770,16 @@ def _set_characterized(character, enabled):
     return result, error
 
 
+def _set_character_definition_lock(character, locked):
+    if character is None:
+        return False
+    try:
+        character.Lock = bool(locked)
+        return True
+    except Exception:
+        return False
+
+
 def _characterize_with_roll_fallback(character):
     _set_current_character(character)
     result, error = _set_characterized(character, True)
@@ -3781,6 +3792,8 @@ def _characterize_with_roll_fallback(character):
             pass
         cleared = _clear_roll_links(character)
         result, error = _set_characterized(character, True)
+    if result and not _sanitize_motionbuilder_warning_text(error or ""):
+        _set_character_definition_lock(character, True)
     _set_current_character(character)
     return result, error, cleared
 
@@ -3896,6 +3909,7 @@ def load_character_definition(name):
     FBApplication().CurrentCharacter = character
     was_characterized = bool(character.GetCharacterize())
     if was_characterized:
+        _set_character_definition_lock(character, False)
         try:
             character.SetCharacterizeOn(False)
         except Exception:
@@ -4047,7 +4061,7 @@ def maybe_warn_control_rig_mode(character, model, property_name):
     )
 
 
-def auto_map_character(create_control_rig=True, characterize=True, activate_input=False):
+def auto_map_character(create_control_rig=False, characterize=True, activate_input=False):
     scope_error = _require_skeleton_scope_if_needed()
     if scope_error:
         _append_status(scope_error["error"])
@@ -4381,14 +4395,15 @@ def _tpose_reference_axes(character):
         or _direction_between(character, "SpineLink", "HeadLink")
         or (0.0, 1.0, 0.0)
     )
-    left = (
+    side_hint = (
         _direction_between(character, "RightArmLink", "LeftArmLink")
         or _direction_between(character, "RightShoulderLink", "LeftShoulderLink")
         or _direction_between(character, "RightUpLegLink", "LeftUpLegLink")
         or (1.0, 0.0, 0.0)
     )
-    # Remove vertical drift so arms become a true horizontal T relative to the body.
-    left = _v_norm(_v_sub(left, _v_mul(up, _v_dot(left, up))), (1.0, 0.0, 0.0))
+    # MotionBuilder's definition check expects arms parallel to the global X axis.
+    # Body-derived side vectors can follow a bad raised-arm pose and keep the warning alive.
+    left = (1.0, 0.0, 0.0) if _v_dot(side_hint, (1.0, 0.0, 0.0)) >= 0.0 else (-1.0, 0.0, 0.0)
     forward = _v_norm(_v_cross(left, up), (0.0, 0.0, 1.0))
     left = _v_norm(_v_cross(up, forward), left)
     return {
@@ -4442,12 +4457,13 @@ def _apply_skeleton_tpose(character):
         aligned += _align_tpose_chain(character, right_arm, axes["right"])
         aligned += _align_tpose_chain(character, left_leg, axes["down"])
         aligned += _align_tpose_chain(character, right_leg, axes["down"])
-        for side, direction in (("Left", axes["left"]), ("Right", axes["right"])):
-            for finger in ("Thumb", "Index", "Middle", "Ring", "Pinky"):
-                slots = ["{0}HandLink".format(side)]
-                for index in range(1, 5):
-                    slots.append("{0}Hand{1}{2}Link".format(side, finger, index))
-                aligned += _align_tpose_chain(character, slots, direction)
+        if TPOSE_ALIGN_FINGERS:
+            for side, direction in (("Left", axes["left"]), ("Right", axes["right"])):
+                for finger in ("Thumb", "Index", "Middle", "Ring", "Pinky"):
+                    slots = ["{0}HandLink".format(side)]
+                    for index in range(1, 5):
+                        slots.append("{0}Hand{1}{2}Link".format(side, finger, index))
+                    aligned += _align_tpose_chain(character, slots, direction)
     return aligned
 
 
@@ -4478,7 +4494,7 @@ def _tpose_arm_axis_report(character):
     }
 
 
-def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
+def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False):
     character, error = _scoped_character_or_error()
     if error:
         _append_status(error["error"])
@@ -4493,6 +4509,7 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
         character.ActiveInput = False
     except Exception:
         pass
+    _set_character_definition_lock(character, False)
     try:
         character.SetCharacterizeOn(False)
     except Exception:
@@ -4585,7 +4602,7 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
     return result
 
 
-def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=True):
+def make_tpose_on_frame_one(key_skeleton=True, key_control_rig=False):
     return make_tpose_on_frame_zero(key_skeleton=key_skeleton, key_control_rig=key_control_rig)
 
 
@@ -4792,7 +4809,7 @@ def _on_clean_markers(control=None, event=None, prop_marker_base_name=None):
 
 
 def _on_auto_map(control=None, event=None):
-    auto_map_character(create_control_rig=True, characterize=True, activate_input=False)
+    auto_map_character(create_control_rig=False, characterize=True, activate_input=False)
     _refresh_dashboard()
 
 
@@ -4802,7 +4819,7 @@ def _on_use_selected_skeleton(control=None, event=None):
 
 
 def _on_tpose_frame_zero(control=None, event=None):
-    make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True)
+    make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False)
     _refresh_dashboard()
 
 
@@ -5174,7 +5191,7 @@ if QtWidgets:
             self._refresh_skeleton_scope_label()
 
         def _auto_map_skeleton(self):
-            auto_map_character(create_control_rig=True, characterize=True, activate_input=False)
+            auto_map_character(create_control_rig=False, characterize=True, activate_input=False)
             self._refresh_skeleton_scope_label()
             _refresh_dashboard()
 
