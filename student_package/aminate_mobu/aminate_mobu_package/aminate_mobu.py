@@ -3495,6 +3495,20 @@ def _set_characterized(character, enabled):
     return result, error
 
 
+def _characterize_with_roll_fallback(character):
+    result, error = _set_characterized(character, True)
+    clean = _sanitize_motionbuilder_warning_text(error or "")
+    cleared = 0
+    if clean and "invalid roll" in clean.lower():
+        try:
+            character.SetCharacterizeOn(False)
+        except Exception:
+            pass
+        cleared = _clear_roll_links(character)
+        result, error = _set_characterized(character, True)
+    return result, error, cleared
+
+
 def _definition_store_load():
     path = _definition_store_path()
     if not os.path.isfile(path):
@@ -3615,8 +3629,6 @@ def load_character_definition(name):
     missing = []
     used_models = set()
     for slot_name, saved_model_name in links.items():
-        if slot_name in ROLL_LINK_SLOTS:
-            continue
         model = _find_definition_model(saved_model_name, slot_name, indexed)
         if model is None or _component_long_name(model) in used_models:
             missing.append(slot_name)
@@ -3627,8 +3639,7 @@ def load_character_definition(name):
             used_models.add(model_name)
     characterize_result = False
     characterize_error = ""
-    _clear_roll_links(character)
-    characterize_result, characterize_error = _set_characterized(character, True)
+    characterize_result, characterize_error, cleared_roll_links = _characterize_with_roll_fallback(character)
     result = {
         "ok": True,
         "name": definition_name,
@@ -3640,6 +3651,7 @@ def load_character_definition(name):
         "characterized": bool(character.GetCharacterize()),
         "characterize_result": characterize_result,
         "characterize_error": characterize_error,
+        "cleared_roll_links": cleared_roll_links,
     }
     lines = [
         "Loaded definition {0}".format(definition_name),
@@ -3781,8 +3793,6 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
     mapped = OrderedDict()
     used_models = set()
     for slot_name in CHARACTER_SLOT_CANDIDATES:
-        if slot_name in ROLL_LINK_SLOTS:
-            continue
         model = _slot_match_for_index(slot_name, indexed, used_models=used_models)
         if model is None:
             continue
@@ -3795,9 +3805,9 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
     characterize_result = None
     characterize_error = None
     control_rig_result = None
+    cleared_roll_links = 0
     if characterize:
-        _clear_roll_links(character)
-        characterize_result, characterize_error = _set_characterized(character, True)
+        characterize_result, characterize_error, cleared_roll_links = _characterize_with_roll_fallback(character)
     if create_control_rig and character.GetCharacterize():
         try:
             control_rig_result = bool(character.CreateControlRig(True))
@@ -3825,6 +3835,7 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
         "characterize_result": characterize_result,
         "characterize_error": characterize_error,
         "control_rig_result": control_rig_result,
+        "cleared_roll_links": cleared_roll_links,
     }
     report_lines = [
         "Auto Map Report",
@@ -4147,17 +4158,19 @@ def _apply_skeleton_tpose(character):
     right_arm = ["RightShoulderLink", "RightArmLink", "RightForeArmLink", "RightHandLink"]
     left_leg = ["LeftUpLegLink", "LeftLegLink", "LeftFootLink"]
     right_leg = ["RightUpLegLink", "RightLegLink", "RightFootLink"]
-    aligned += _align_tpose_chain(character, spine_slots, axes["up"])
-    aligned += _align_tpose_chain(character, left_arm, axes["left"])
-    aligned += _align_tpose_chain(character, right_arm, axes["right"])
-    aligned += _align_tpose_chain(character, left_leg, axes["down"])
-    aligned += _align_tpose_chain(character, right_leg, axes["down"])
-    for side, direction in (("Left", axes["left"]), ("Right", axes["right"])):
-        for finger in ("Thumb", "Index", "Middle", "Ring", "Pinky"):
-            slots = ["{0}HandLink".format(side)]
-            for index in range(1, 5):
-                slots.append("{0}Hand{1}{2}Link".format(side, finger, index))
-            aligned += _align_tpose_chain(character, slots, direction)
+    for _pass_index in range(3):
+        axes = _tpose_reference_axes(character)
+        aligned += _align_tpose_chain(character, spine_slots, axes["up"])
+        aligned += _align_tpose_chain(character, left_arm, axes["left"])
+        aligned += _align_tpose_chain(character, right_arm, axes["right"])
+        aligned += _align_tpose_chain(character, left_leg, axes["down"])
+        aligned += _align_tpose_chain(character, right_leg, axes["down"])
+        for side, direction in (("Left", axes["left"]), ("Right", axes["right"])):
+            for finger in ("Thumb", "Index", "Middle", "Ring", "Pinky"):
+                slots = ["{0}HandLink".format(side)]
+                for index in range(1, 5):
+                    slots.append("{0}Hand{1}{2}Link".format(side, finger, index))
+                aligned += _align_tpose_chain(character, slots, direction)
     return aligned
 
 
@@ -4175,7 +4188,6 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
         character.SetCharacterizeOn(False)
     except Exception:
         pass
-    cleared_roll_links = _clear_roll_links(character)
 
     player = FBPlayerControl()
     frame_zero = FBTime(0, 0, 0, 0)
@@ -4186,14 +4198,13 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
             player.Goto(frame_zero)
         except Exception:
             pass
-    _evaluate_scene()
-    aligned_segments = _apply_skeleton_tpose(character)
     try:
         character.GoToStancePose(True, True)
         _evaluate_scene()
     except Exception:
         pass
-    characterize_result, characterize_error = _set_characterized(character, True)
+    aligned_segments = _apply_skeleton_tpose(character)
+    characterize_result, characterize_error, cleared_roll_links = _characterize_with_roll_fallback(character)
 
     keyed_models = 0
     keyed_channels = 0
