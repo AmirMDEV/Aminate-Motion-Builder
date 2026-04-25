@@ -2,6 +2,7 @@
 
 ## 2026-04-25
 
+- Fixed the live MotionBuilder viewport T-pose path by disabling active character input before posing, removing the stale stance restore from the button flow, adding strict arm-axis validation, and allowing no-selection Auto Map when one clear humanoid skeleton can be inferred
 - Restored compatible roll-bone mapping with a MotionBuilder validation fallback, and fixed T-Pose Frame 0 so stance pose happens before final arm alignment instead of knocking the arms off the X axis
 - Fixed Auto Map and T-Pose characterization so invalid roll-bone links are cleared only when MotionBuilder rejects them, and T-Pose Frame 0 re-characterizes after setting stance so the Definition tab can turn fully green
 - Fixed Auto Map character naming so new skeleton definitions increment from existing `animate_auto_1`, `animate_auto_2`, etc. instead of reusing the current generated character for a different skeleton

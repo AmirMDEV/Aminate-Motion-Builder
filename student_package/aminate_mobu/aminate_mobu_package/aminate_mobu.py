@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 6
+QT_PANEL_BUILD_VERSION = 7
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -113,6 +113,7 @@ DEFAULT_TOAST_DURATION_MS = 4000
 DEFAULT_PROP_MARKER_BASE_NAME = "Prop"
 UNLABELLED_MARKER_PATTERN = re.compile(r"^(marker|tmpmarker|unnamedmarker)(?:\s+\d+)?$", re.IGNORECASE)
 CONTROL_RIG_PROPERTY_NAMES = {"Lcl Translation", "Lcl Rotation"}
+TPOSE_AXIS_DOT_THRESHOLD = 0.995
 EASY_TOOLTIP_TEXT = {
     "Aminate": "Open Aminate Mobu tools.",
     "File": "Open files, save work, import, export, and close the scene.",
@@ -2569,6 +2570,20 @@ def _current_character():
     return FBApplication().CurrentCharacter
 
 
+def _set_current_character(character):
+    if character is None:
+        return False
+    try:
+        FBApplication().CurrentCharacter = character
+    except Exception:
+        return False
+    try:
+        character.Selected = True
+    except Exception:
+        pass
+    return True
+
+
 def _scene_models(predicate=None):
     output = []
     for component in FBSystem().Scene.Components:
@@ -2859,6 +2874,17 @@ def _require_skeleton_scope_if_needed():
         return None
     roots = _skeleton_roots()
     if len(roots) > 1:
+        namespace, indexed, score = find_best_skeleton_namespace()
+        hips = _slot_match_for_index("HipsLink", indexed)
+        inferred_root = _skeleton_root(hips) if hips is not None else None
+        if inferred_root is not None and score >= 500:
+            _SKELETON_SCOPE_ROOT_NAME = _component_long_name(inferred_root)
+            _append_status(
+                "Selected skeleton scope automatically: {0}. Select a different bone or mesh first if this is not the rig you wanted.".format(
+                    selected_skeleton_scope_label()
+                )
+            )
+            return None
         return {
             "ok": False,
             "error": "Multiple skeletons found. Select a skeleton bone or skinned mesh, then click Auto Map Skeleton.",
@@ -3496,6 +3522,7 @@ def _set_characterized(character, enabled):
 
 
 def _characterize_with_roll_fallback(character):
+    _set_current_character(character)
     result, error = _set_characterized(character, True)
     clean = _sanitize_motionbuilder_warning_text(error or "")
     cleared = 0
@@ -3506,6 +3533,7 @@ def _characterize_with_roll_fallback(character):
             pass
         cleared = _clear_roll_links(character)
         result, error = _set_characterized(character, True)
+    _set_current_character(character)
     return result, error, cleared
 
 
@@ -3783,7 +3811,7 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
         return result
     namespace_label = namespace or "Scene"
     character, character_created = _auto_map_target_character(namespace_label)
-    FBApplication().CurrentCharacter = character
+    _set_current_character(character)
     was_characterized = bool(character.GetCharacterize())
     if was_characterized:
         try:
@@ -3814,6 +3842,7 @@ def auto_map_character(create_control_rig=True, characterize=True, activate_inpu
         except Exception as exc:
             control_rig_result = False
             characterize_error = str(exc)
+    _set_current_character(character)
     if activate_input and character.GetCharacterize():
         try:
             character.ActiveInput = True
@@ -3899,7 +3928,7 @@ def _scoped_character_or_error():
         return current, None
     for character in FBSystem().Scene.Characters:
         if _character_matches_skeleton_scope(character):
-            FBApplication().CurrentCharacter = character
+            _set_current_character(character)
             return character, None
     return None, {
         "ok": False,
@@ -4174,16 +4203,48 @@ def _apply_skeleton_tpose(character):
     return aligned
 
 
+def _tpose_arm_axis_report(character):
+    axes = _tpose_reference_axes(character)
+    checks = (
+        ("LeftShoulderLink", "LeftArmLink", axes["left"]),
+        ("LeftArmLink", "LeftForeArmLink", axes["left"]),
+        ("LeftForeArmLink", "LeftHandLink", axes["left"]),
+        ("RightShoulderLink", "RightArmLink", axes["right"]),
+        ("RightArmLink", "RightForeArmLink", axes["right"]),
+        ("RightForeArmLink", "RightHandLink", axes["right"]),
+    )
+    dots = []
+    failures = []
+    for start_slot, end_slot, target in checks:
+        direction = _direction_between(character, start_slot, end_slot)
+        if direction is None:
+            continue
+        dot = _v_dot(direction, target)
+        dots.append(dot)
+        if dot < TPOSE_AXIS_DOT_THRESHOLD:
+            failures.append("{0}->{1} {2:.3f}".format(start_slot, end_slot, dot))
+    return {
+        "min_dot": min(dots) if dots else 0.0,
+        "failures": failures,
+        "ok": bool(dots) and not failures,
+    }
+
+
 def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
     character, error = _scoped_character_or_error()
     if error:
         _append_status(error["error"])
         return error
+    _set_current_character(character)
     was_characterized = bool(character.GetCharacterize())
     if not was_characterized:
         result = {"ok": False, "error": "Current character is not characterized. Auto Map Skeleton first."}
         _append_status(result["error"])
         return result
+    try:
+        character.ActiveInput = False
+    except Exception:
+        pass
     try:
         character.SetCharacterizeOn(False)
     except Exception:
@@ -4198,13 +4259,23 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
             player.Goto(frame_zero)
         except Exception:
             pass
-    try:
-        character.GoToStancePose(True, True)
-        _evaluate_scene()
-    except Exception:
-        pass
     aligned_segments = _apply_skeleton_tpose(character)
+    _evaluate_scene()
     characterize_result, characterize_error, cleared_roll_links = _characterize_with_roll_fallback(character)
+    _set_current_character(character)
+    axis_report = _tpose_arm_axis_report(character)
+    if not axis_report["ok"]:
+        try:
+            character.SetCharacterizeOn(False)
+        except Exception:
+            pass
+        aligned_segments += _apply_skeleton_tpose(character)
+        _evaluate_scene()
+        characterize_result, characterize_error, cleared_roll_links_retry = _characterize_with_roll_fallback(character)
+        cleared_roll_links += cleared_roll_links_retry
+        _set_current_character(character)
+        axis_report = _tpose_arm_axis_report(character)
+    stance_pose_ok = bool(character.GetCharacterize()) and not bool(characterize_error) and bool(axis_report["ok"])
 
     keyed_models = 0
     keyed_channels = 0
@@ -4240,20 +4311,23 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=True):
         "keyed_models": keyed_models,
         "keyed_channels": keyed_channels,
         "characterized": bool(character.GetCharacterize()),
-        "stance_pose_ok": bool(character.GetCharacterize()) and not bool(characterize_error),
+        "stance_pose_ok": stance_pose_ok,
         "aligned_segments": aligned_segments,
         "cleared_roll_links": cleared_roll_links,
         "characterize_result": characterize_result,
         "characterize_error": characterize_error,
+        "tpose_axis_min_dot": axis_report["min_dot"],
+        "tpose_axis_failures": axis_report["failures"],
     }
     _append_status(
-        "T-Pose Frame 0 keyed {0} on {1}: skeleton T-pose at frame 0 only, {2} segment(s), {3} model(s), {4} channel key(s), green check {5}.".format(
+        "T-Pose Frame 0 keyed {0} on {1}: skeleton T-pose at frame 0 only, {2} segment(s), {3} model(s), {4} channel key(s), green check {5}, arm axis {6:.3f}.".format(
             character.LongName,
             selected_skeleton_scope_label(),
             aligned_segments,
             keyed_models,
             keyed_channels,
-            bool(character.GetCharacterize()) and not bool(characterize_error),
+            stance_pose_ok,
+            axis_report["min_dot"],
         )
     )
     if characterize_error:
