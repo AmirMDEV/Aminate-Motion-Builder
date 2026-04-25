@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 5
+QT_PANEL_BUILD_VERSION = 6
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -150,8 +150,8 @@ EASY_TOOLTIP_TEXT = {
     "Scene Cleaner": "Delete user cameras, remove junk default markers, and keep animated prop markers.",
     "Delete Cameras": "Delete user made cameras from the scene.",
     "Delete Markers": "Delete junk default markers and keep animated prop markers.",
-    "Auto Map Skeleton": "Try to map the current skeleton into HumanIK from hips to fingers and feet.",
-    "Use Selected Skeleton": "Select any bone in the skeleton first, then lock Aminate to that skeleton hierarchy.",
+    "Auto Map Skeleton": "Select a skeleton bone or skinned mesh, then click this to map that whole skeleton into HumanIK.",
+    "Use Selected Skeleton": "Optional: lock Aminate to the selected skeleton hierarchy before using several tools.",
     "T-Pose Frame 0": "Put the current character skeleton into a T-pose on frame 0 and key it there only.",
     "Hide Panel": "Collapse Aminate into a thin side tab so it takes less space.",
     "Show Panel": "Expand Aminate back into the full tool panel.",
@@ -2630,43 +2630,21 @@ def _skeleton_descendants(root):
     return output
 
 
+def _skeleton_root_by_name(root_name):
+    if not root_name:
+        return None
+    root = FBFindModelByLabelName(root_name)
+    if root is None:
+        root = FBFindModelByLabelName(_short_name_from_long_name(root_name))
+    return root if isinstance(root, FBModelSkeleton) else None
+
+
 def _is_model_in_skeleton_scope(model, root_name=None):
     root_name = root_name if root_name is not None else _SKELETON_SCOPE_ROOT_NAME
     if not model or not root_name:
         return False
     root = _skeleton_root(model)
     return bool(root and _component_long_name(root) == root_name)
-
-
-def selected_skeleton_scope_label():
-    if not _SKELETON_SCOPE_ROOT_NAME:
-        return "No skeleton selected"
-    return _short_name_from_long_name(_SKELETON_SCOPE_ROOT_NAME)
-
-
-def set_selected_skeleton_scope_from_selection():
-    global _SKELETON_SCOPE_ROOT_NAME
-    for model in _selected_models():
-        if isinstance(model, FBModelSkeleton):
-            root = _skeleton_root(model)
-            if root is not None:
-                _SKELETON_SCOPE_ROOT_NAME = _component_long_name(root)
-                _append_status("Selected skeleton scope: {0}.".format(selected_skeleton_scope_label()))
-                return {"ok": True, "root": _SKELETON_SCOPE_ROOT_NAME, "label": selected_skeleton_scope_label()}
-    result = {"ok": False, "error": "Select any bone in the skeleton first."}
-    _append_status(result["error"])
-    return result
-
-
-def _scoped_skeletons(namespace=None):
-    if _SKELETON_SCOPE_ROOT_NAME:
-        root = FBFindModelByLabelName(_SKELETON_SCOPE_ROOT_NAME) or FBFindModelByLabelName(selected_skeleton_scope_label())
-        if root is not None:
-            models = _skeleton_descendants(root)
-            if namespace:
-                models = [model for model in models if _namespace_from_long_name(model.LongName) == namespace]
-            return models
-    return _scene_skeletons(namespace=namespace)
 
 
 def _skeleton_roots():
@@ -2678,17 +2656,212 @@ def _skeleton_roots():
     return list(roots.values())
 
 
+def _ancestor_skeletons(model):
+    output = []
+    parent = model
+    seen = set()
+    while parent is not None:
+        key = _component_long_name(parent)
+        if key in seen:
+            break
+        seen.add(key)
+        if isinstance(parent, FBModelSkeleton):
+            output.append(parent)
+        parent = _model_parent(parent)
+    return output
+
+
+def _iter_motionbuilder_list(value, limit=512):
+    if value is None:
+        return []
+    try:
+        return list(value)
+    except Exception:
+        pass
+    try:
+        count = min(int(len(value)), limit)
+    except Exception:
+        count = 0
+    output = []
+    for index in range(count):
+        try:
+            output.append(value[index])
+        except Exception:
+            break
+    return output
+
+
+def _connection_skeletons(component, max_depth=3):
+    output = []
+    queue = [(component, 0)]
+    seen = set()
+    while queue:
+        item, depth = queue.pop(0)
+        if item is None:
+            continue
+        key = id(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        if isinstance(item, FBModelSkeleton):
+            output.append(item)
+            continue
+        if depth >= max_depth:
+            continue
+        if isinstance(item, FBModel):
+            queue.extend((ancestor, depth + 1) for ancestor in _ancestor_skeletons(item))
+            try:
+                geometry = item.Geometry
+            except Exception:
+                geometry = None
+            if geometry is not None:
+                queue.append((geometry, depth + 1))
+        for method_name in ("GetSrc", "GetDst"):
+            count_method = "GetSrcCount" if method_name == "GetSrc" else "GetDstCount"
+            try:
+                count = min(int(getattr(item, count_method)()), 512)
+            except Exception:
+                count = 0
+            for index in range(count):
+                try:
+                    queue.append((getattr(item, method_name)(index), depth + 1))
+                except Exception:
+                    pass
+        try:
+            properties = list(getattr(item, "PropertyList", []) or [])
+        except Exception:
+            properties = []
+        for prop in properties:
+            for method_name in ("GetSrc", "GetDst"):
+                count_method = "GetSrcCount" if method_name == "GetSrc" else "GetDstCount"
+                try:
+                    count = int(getattr(prop, count_method)())
+                except Exception:
+                    count = 0
+                for index in range(count):
+                    try:
+                        queue.append((getattr(prop, method_name)(index), depth + 1))
+                    except Exception:
+                        pass
+        for attr_name in ("Deformers", "Clusters"):
+            try:
+                related_items = getattr(item, attr_name)
+            except Exception:
+                related_items = None
+            for related in _iter_motionbuilder_list(related_items):
+                queue.append((related, depth + 1))
+    unique = OrderedDict()
+    for model in output:
+        root = _skeleton_root(model)
+        if root is not None:
+            unique.setdefault(_component_long_name(root), root)
+    return list(unique.values())
+
+
+def _best_root_for_selected_models(selected_models):
+    roots = _skeleton_roots()
+    if not selected_models or not roots:
+        return None
+    selected_skeletons = [model for model in selected_models if isinstance(model, FBModelSkeleton)]
+    if selected_skeletons:
+        selected_names = {_component_long_name(model) for model in selected_skeletons}
+        best_root = None
+        best_score = -1
+        for root in roots:
+            descendants = _skeleton_descendants(root)
+            descendant_names = {_component_long_name(model) for model in descendants}
+            selected_hits = len(selected_names.intersection(descendant_names))
+            namespace_hits = sum(
+                1
+                for model in selected_skeletons
+                if _namespace_from_long_name(model.LongName) == _namespace_from_long_name(root.LongName)
+            )
+            score = (selected_hits * 10000) + (namespace_hits * 100) + len(descendants)
+            if score > best_score:
+                best_root = root
+                best_score = score
+        if best_root is not None and best_score > 0:
+            return best_root
+    related_roots = OrderedDict()
+    for model in selected_models:
+        for root in _connection_skeletons(model):
+            related_roots.setdefault(_component_long_name(root), root)
+        model_namespace = _namespace_from_long_name(_component_long_name(model))
+        if model_namespace:
+            for root in roots:
+                if _namespace_from_long_name(root.LongName) == model_namespace:
+                    related_roots.setdefault(_component_long_name(root), root)
+    if len(related_roots) == 1:
+        return next(iter(related_roots.values()))
+    if related_roots:
+        selected_names = [_normalize_name(_short_name_from_long_name(_component_long_name(model))) for model in selected_models]
+        best_root = None
+        best_score = -1
+        for root in related_roots.values():
+            root_namespace = _namespace_from_long_name(root.LongName)
+            descendants = _skeleton_descendants(root)
+            score = len(descendants)
+            for model in selected_models:
+                if root_namespace and _namespace_from_long_name(_component_long_name(model)) == root_namespace:
+                    score += 1000
+            root_tokens = _normalize_name(_short_name_from_long_name(root.LongName))
+            if any(root_tokens and (root_tokens in name or name in root_tokens) for name in selected_names):
+                score += 250
+            if score > best_score:
+                best_root = root
+                best_score = score
+        return best_root
+    if len(roots) == 1:
+        return roots[0]
+    return None
+
+
+def selected_skeleton_scope_label():
+    if not _SKELETON_SCOPE_ROOT_NAME:
+        return "No skeleton selected"
+    return _short_name_from_long_name(_SKELETON_SCOPE_ROOT_NAME)
+
+
+def set_selected_skeleton_scope_from_selection(require_selection=True):
+    global _SKELETON_SCOPE_ROOT_NAME
+    selected = _selected_models()
+    root = _best_root_for_selected_models(selected)
+    if root is not None:
+        _SKELETON_SCOPE_ROOT_NAME = _component_long_name(root)
+        _append_status("Selected skeleton scope: {0}.".format(selected_skeleton_scope_label()))
+        return {"ok": True, "root": _SKELETON_SCOPE_ROOT_NAME, "label": selected_skeleton_scope_label()}
+    if not selected and not require_selection:
+        return {"ok": False, "error": "No skeleton or mesh selected."}
+    result = {"ok": False, "error": "Select a skeleton bone or skinned mesh, then click Auto Map Skeleton."}
+    _append_status(result["error"])
+    return result
+
+
+def _scoped_skeletons(namespace=None):
+    if _SKELETON_SCOPE_ROOT_NAME:
+        root = _skeleton_root_by_name(_SKELETON_SCOPE_ROOT_NAME)
+        if root is not None:
+            models = _skeleton_descendants(root)
+            if namespace:
+                models = [model for model in models if _namespace_from_long_name(model.LongName) == namespace]
+            return models
+    return _scene_skeletons(namespace=namespace)
+
+
 def _require_skeleton_scope_if_needed():
     global _SKELETON_SCOPE_ROOT_NAME
+    selection_result = set_selected_skeleton_scope_from_selection(require_selection=False)
+    if selection_result.get("ok"):
+        return None
     if _SKELETON_SCOPE_ROOT_NAME:
         return None
     roots = _skeleton_roots()
     if len(roots) > 1:
         return {
             "ok": False,
-            "error": "Multiple skeletons found. Select a bone, click Use Selected Skeleton, then run Auto Map or T-Pose.",
+            "error": "Multiple skeletons found. Select a skeleton bone or skinned mesh, then click Auto Map Skeleton.",
             "root_count": len(roots),
-    }
+        }
     if len(roots) == 1:
         _SKELETON_SCOPE_ROOT_NAME = _component_long_name(roots[0])
     return None
@@ -4409,6 +4582,11 @@ if QtWidgets:
             self.prop_marker_base_field.setToolTip("Type the base name for animated prop markers such as Gun or Sword.")
             marker_row.addWidget(self.prop_marker_base_field, 1)
             layout.addLayout(marker_row)
+            instruction = QtWidgets.QLabel("Select a skeleton bone or skinned mesh, then click Auto Map Skeleton.")
+            instruction.setObjectName("mayaAnimWorkflowIntroBody")
+            instruction.setWordWrap(True)
+            instruction.setToolTip("Auto Map now reads the selected bone, selected bones, or selected mesh to choose the correct skeleton automatically.")
+            layout.addWidget(instruction)
             skeleton_row = QtWidgets.QHBoxLayout()
             skeleton_row.setSpacing(5)
             skeleton_label = QtWidgets.QLabel("Skeleton Scope")
@@ -4418,7 +4596,6 @@ if QtWidgets:
             self.skeleton_scope_label.setObjectName("aminateMobuThemeBadge")
             self.skeleton_scope_label.setToolTip("Selected skeleton root for Auto Map and T-Pose.")
             skeleton_row.addWidget(self.skeleton_scope_label, 1)
-            skeleton_row.addWidget(self._action_button("Use Selected Skeleton", self._use_selected_skeleton))
             layout.addLayout(skeleton_row)
             cleaner_grid = QtWidgets.QGridLayout()
             cleaner_grid.setHorizontalSpacing(5)
@@ -4431,7 +4608,7 @@ if QtWidgets:
             setup_grid = QtWidgets.QGridLayout()
             setup_grid.setHorizontalSpacing(5)
             setup_grid.setVerticalSpacing(4)
-            setup_grid.addWidget(self._action_button("Auto Map Skeleton", _on_auto_map), 0, 0)
+            setup_grid.addWidget(self._action_button("Auto Map Skeleton", self._auto_map_skeleton), 0, 0)
             setup_grid.addWidget(self._action_button("Validate Character", _on_validate), 0, 1)
             setup_grid.addWidget(self._action_button("Body Part Mode", _on_body_part), 0, 2)
             setup_grid.addWidget(self._action_button("Full Body Mode", _on_full_body), 0, 3)
@@ -4603,6 +4780,10 @@ if QtWidgets:
 
         def _use_selected_skeleton(self):
             set_selected_skeleton_scope_from_selection()
+            self._refresh_skeleton_scope_label()
+
+        def _auto_map_skeleton(self):
+            auto_map_character(create_control_rig=True, characterize=True, activate_input=False)
             self._refresh_skeleton_scope_label()
             _refresh_dashboard()
 
@@ -4852,13 +5033,16 @@ def _populate_tool_layout(tool):
     container.Add(row, 28)
 
     row = pyfbsdk_additions.FBHBoxLayout(FBAttachType.kFBAttachLeft)
-    row.Add(_button("Use Selected Skeleton", _on_use_selected_skeleton, color=(0.18, 0.34, 0.44)), 170)
     row.Add(_button("Auto Map Skeleton", _on_auto_map, color=(0.40, 0.24, 0.10)), 150)
     row.Add(_button("Validate Character", _on_validate, color=(0.26, 0.24, 0.40)), 150)
     row.Add(_button("T-Pose Frame 0", _on_tpose_frame_zero, color=(0.24, 0.34, 0.40)), 150)
     row.Add(_button("Body Part Mode", _on_body_part, color=(0.24, 0.34, 0.14)), 130)
     row.Add(_button("Full Body Mode", _on_full_body, color=(0.24, 0.34, 0.14)), 130)
     container.Add(row, 28)
+    instruction = FBEdit()
+    instruction.ReadOnly = True
+    instruction.Text = "Select a skeleton bone or skinned mesh, then click Auto Map Skeleton."
+    container.Add(instruction, 26)
 
     row = pyfbsdk_additions.FBHBoxLayout(FBAttachType.kFBAttachLeft)
     row.Add(_button("History Timeline", _on_history_timeline, color=(0.46, 0.34, 0.12)), 180)

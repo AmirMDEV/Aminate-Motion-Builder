@@ -27,9 +27,19 @@ ASSET_DIRS = [
 ]
 
 
-def build_student_package():
-    if PACKAGE_ROOT.exists():
+def reset_package_root():
+    if not PACKAGE_ROOT.exists():
+        return
+    try:
         shutil.rmtree(PACKAGE_ROOT)
+    except PermissionError:
+        # MotionBuilder can hold tutorial GIF previews open. Refresh files in place
+        # so code/package updates still ship without forcing the user to close Mobu.
+        pass
+
+
+def build_student_package():
+    reset_package_root()
     PAYLOAD_ROOT.mkdir(parents=True, exist_ok=True)
     if ZIP_PATH.exists():
         ZIP_PATH.unlink()
@@ -39,7 +49,7 @@ def build_student_package():
     for dir_name in ASSET_DIRS:
         source_dir = REPO_ROOT / dir_name
         if source_dir.exists():
-            shutil.copytree(str(source_dir), str(PAYLOAD_ROOT / dir_name))
+            shutil.copytree(str(source_dir), str(PAYLOAD_ROOT / dir_name), dirs_exist_ok=True)
     shutil.copy2(str(REPO_ROOT / LICENSE_FILE_NAME), str(PAYLOAD_ROOT / LICENSE_FILE_NAME))
     shutil.copy2(str(REPO_ROOT / LICENSE_FILE_NAME), str(PACKAGE_ROOT / LICENSE_FILE_NAME))
 
