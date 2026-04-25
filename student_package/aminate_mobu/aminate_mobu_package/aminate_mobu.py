@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 12
+QT_PANEL_BUILD_VERSION = 13
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -5291,6 +5291,39 @@ def _on_key_constraints(control=None, event=None):
 
 
 if QtWidgets:
+    class AspectRatioPixmapLabel(QtWidgets.QLabel):
+        def __init__(self, parent=None):
+            super(AspectRatioPixmapLabel, self).__init__(parent)
+            self._source_pixmap = None
+            self.setAlignment(QtCore.Qt.AlignCenter)
+            self.setScaledContents(False)
+
+        def setAspectPixmap(self, pixmap):
+            self._source_pixmap = pixmap if pixmap is not None and not pixmap.isNull() else None
+            self._refresh_scaled_pixmap()
+
+        def clear(self):
+            self._source_pixmap = None
+            super(AspectRatioPixmapLabel, self).clear()
+
+        def resizeEvent(self, event):
+            super(AspectRatioPixmapLabel, self).resizeEvent(event)
+            self._refresh_scaled_pixmap()
+
+        def _refresh_scaled_pixmap(self):
+            if self._source_pixmap is None:
+                return
+            size = self.contentsRect().size()
+            if size.width() <= 0 or size.height() <= 0:
+                return
+            scaled = self._source_pixmap.scaled(
+                size,
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation,
+            )
+            super(AspectRatioPixmapLabel, self).setPixmap(scaled)
+
+
     class AminateMobuPanel(QtWidgets.QWidget):
         def __init__(self, parent=None):
             super(AminateMobuPanel, self).__init__(parent)
@@ -5505,11 +5538,10 @@ if QtWidgets:
             self.constraint_preview_title = QtWidgets.QLabel("Hover a constraint or pick a demo.")
             self.constraint_preview_title.setObjectName("mayaAnimWorkflowIntroTitle")
             layout.addWidget(self.constraint_preview_title)
-            self.constraint_preview = QtWidgets.QLabel()
+            self.constraint_preview = AspectRatioPixmapLabel()
             self.constraint_preview.setObjectName("aminateMobuConstraintPreview")
             self.constraint_preview.setMinimumSize(220, 150)
             self.constraint_preview.setAlignment(QtCore.Qt.AlignCenter)
-            self.constraint_preview.setScaledContents(True)
             self.constraint_preview.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
             self.constraint_preview.setToolTip("Simple visual constraint preview.")
             layout.addWidget(self.constraint_preview, 1)
@@ -5682,7 +5714,7 @@ if QtWidgets:
                 self.constraint_preview.setText("No preview found for {0}".format(title))
                 return
             self.constraint_preview.clear()
-            self.constraint_preview.setPixmap(pixmap)
+            self.constraint_preview.setAspectPixmap(pixmap)
             self._constraint_preview_key = key
 
         def _preview_constraint_table_item(self, item):
