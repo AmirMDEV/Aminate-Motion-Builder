@@ -2,6 +2,8 @@
 
 ## 2026-04-25
 
+- Changed Scene Cleaner to treat the `Unlabeled_Markers` namespace as junk in full, so imported unlabeled marker groups are deleted even if MotionBuilder stored static sampled transform curves on them
+- Expanded Scene Cleaner marker detection for `Unlabeled_Markers:_#` imports and changed prop-marker preservation to require actual changing transform curves, so static markers with single keyed positions are deleted instead of being kept forever
 - Fixed Scene Cleaner unlabeled-marker cleanup so markers with translation or rotation animation keys are preserved as prop markers even when MotionBuilder stores those keys on global `Translation`/`Rotation` properties instead of local transform properties
 - Improved T-Pose Frame 0 again so source and target characters use a true world-upright Y-axis body stance, align through missing spine/neck slots, key current local transforms instead of stale frame-0 values, and remove target-only optional spine/neck definition slots when retargeting from a simpler source
 - Replaced constraint tutorial GIFs with simple imagegen-based static PNG explanation cards and made the Constraints Manager preview scale with the Aminate panel size

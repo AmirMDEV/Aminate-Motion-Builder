@@ -111,7 +111,8 @@ LOCK_WARNING_THROTTLE_SECONDS = 8.0
 MODE_WARNING_THROTTLE_SECONDS = 2.0
 DEFAULT_TOAST_DURATION_MS = 4000
 DEFAULT_PROP_MARKER_BASE_NAME = "Prop"
-UNLABELLED_MARKER_PATTERN = re.compile(r"^(marker|tmpmarker|unnamedmarker)(?:\s+\d+)?$", re.IGNORECASE)
+UNLABELLED_MARKER_PATTERN = re.compile(r"^(?:_?\d+|marker[\s_-]?\d*|tmpmarker[\s_-]?\d*|unnamedmarker[\s_-]?\d*|unnamed[\s_-]?\d*)$", re.IGNORECASE)
+UNLABELLED_MARKER_NAMESPACE_PATTERN = re.compile(r"^unlabel(?:ed|led)?markers?$", re.IGNORECASE)
 CONTROL_RIG_PROPERTY_NAMES = {"Lcl Translation", "Lcl Rotation"}
 MARKER_TRANSFORM_PROPERTY_NAMES = (
     "Lcl Translation",
@@ -3325,8 +3326,19 @@ def _scene_markers():
 
 
 def _is_unlabelled_marker(marker):
-    short_name = _short_name_from_long_name(_component_long_name(marker))
-    return bool(UNLABELLED_MARKER_PATTERN.match(short_name))
+    long_name = _component_long_name(marker)
+    short_name = _short_name_from_long_name(long_name).strip()
+    namespace = _namespace_from_long_name(long_name).strip()
+    if bool(UNLABELLED_MARKER_PATTERN.match(short_name)):
+        return True
+    if namespace and UNLABELLED_MARKER_NAMESPACE_PATTERN.match(_normalize_name(namespace)) and re.match(r"^_?\d+$", short_name):
+        return True
+    return False
+
+
+def _is_unlabelled_marker_namespace(marker):
+    namespace = _namespace_from_long_name(_component_long_name(marker)).strip()
+    return bool(namespace and UNLABELLED_MARKER_NAMESPACE_PATTERN.match(_normalize_name(namespace)))
 
 
 def _property_has_animation_keys(prop):
@@ -3363,16 +3375,60 @@ def _property_has_animation_keys(prop):
     return False
 
 
+def _animation_node_fcurves(node):
+    fcurve = getattr(node, "FCurve", None)
+    if fcurve is not None:
+        yield fcurve
+    for child in getattr(node, "Nodes", []) or []:
+        for item in _animation_node_fcurves(child):
+            yield item
+
+
+def _fcurve_key_values(fcurve):
+    values = []
+    try:
+        key_count = len(fcurve.Keys)
+    except Exception:
+        key_count = 0
+    for index in range(key_count):
+        try:
+            values.append(float(fcurve.KeyGetValue(index)))
+        except Exception:
+            try:
+                values.append(float(fcurve.Keys[index].Value))
+            except Exception:
+                pass
+    return values
+
+
+def _property_has_varying_animation_keys(prop, epsilon=0.0001):
+    if prop is None:
+        return False
+    try:
+        animation_node = prop.GetAnimationNode()
+    except Exception:
+        animation_node = None
+    if animation_node is None:
+        return False
+    for fcurve in _animation_node_fcurves(animation_node):
+        values = _fcurve_key_values(fcurve)
+        if len(values) < 2:
+            continue
+        if (max(values) - min(values)) > epsilon:
+            return True
+    return False
+
+
 def _marker_has_transform_animation(marker):
     if marker is None:
         return False
     for prop_name in MARKER_TRANSFORM_PROPERTY_NAMES:
         prop = marker.PropertyList.Find(prop_name)
-        if _property_has_animation_keys(prop):
+        if _property_has_varying_animation_keys(prop):
             return True
     for attr_name in ("Translation", "Rotation"):
         prop = getattr(marker, attr_name, None)
-        if _property_has_animation_keys(prop):
+        if _property_has_varying_animation_keys(prop):
             return True
     return False
 
@@ -3707,6 +3763,9 @@ def collect_scene_clean_targets():
     junk_markers = []
     prop_markers = []
     for marker in _scene_markers():
+        if _is_unlabelled_marker_namespace(marker):
+            junk_markers.append(marker)
+            continue
         if not _is_unlabelled_marker(marker):
             continue
         if _marker_has_transform_animation(marker):
