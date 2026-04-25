@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 8
+QT_PANEL_BUILD_VERSION = 9
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -133,7 +133,14 @@ EASY_TOOLTIP_TEXT = {
     "Transport Controls": "Play, stop, scrub, and move through time.",
     "Auto Key": "Creates a key when you change something that already has animation keys, so edits get recorded while you work.",
     "AutoKey": "Creates a key when you change something that already has animation keys, so edits get recorded while you work.",
-    "Key": "Adds a keyframe at the current time for the selected object or character control.",
+    "Key": "Adds a keyframe at the current time for the selected object, skeleton bone, or character control.",
+    "Key Selected": "Adds a keyframe at the current time for the selected object, skeleton bone, or character control.",
+    "Set Key": "Adds a keyframe at the current time for the selected object, skeleton bone, or character control.",
+    "Delete Key": "Deletes the selected keyframes, or deletes the key on the current frame for the selected animated channels.",
+    "Delete Keys": "Deletes selected keyframes from the active animation curve or timeline selection.",
+    "Cut Key": "Removes selected keyframes and puts them on the clipboard so you can paste them somewhere else.",
+    "Copy Key": "Copies selected keyframes to the clipboard without removing them.",
+    "Paste Key": "Pastes copied keyframes at the current time.",
     "Move Keys": "Moves selected animation keys in time without changing the object shape or pose directly.",
     "Play": "Starts playback so you can watch the animation at the current frame rate.",
     "Stop": "Stops playback and leaves the time slider where it is.",
@@ -159,9 +166,17 @@ EASY_TOOLTIP_TEXT = {
     "Animation Trigger": "Set up events that make animation actions happen automatically.",
     "Key Controls": "Change how keys are created, moved, flattened, and synced.",
     "TR": "Key translation and rotation channels.",
-    "Zero": "Resets the selected control value back to zero.",
-    "Flat": "Flattens selected animation keys so motion eases smoothly through them.",
-    "Disc.": "Creates a hard change between keys instead of a smooth curve.",
+    "0": "Zero means the value or frame is set to 0. On key controls, it resets the selected channel value to its neutral zero value.",
+    "Zero": "Sets selected keyable values back to 0, like clearing a control's translate or rotate offset.",
+    "Flat": "Makes selected keys ease in and out smoothly by flattening their curve handles.",
+    "Disc.": "Makes selected keys change sharply, useful for pops, switches, or instant pose changes.",
+    "Discontinuity": "Makes selected keys change sharply, useful for pops, switches, or instant pose changes.",
+    "Stepped": "Holds the pose until the next key, then changes instantly.",
+    "Linear": "Moves evenly between keys with no ease in or ease out.",
+    "Auto": "Lets MotionBuilder choose the default key interpolation or active keying mode.",
+    "Selected": "Only affects selected objects, selected controls, or selected keys.",
+    "All": "Affects all relevant objects, controls, or keys in this tool area.",
+    "TRS": "Keys translation, rotation, and scale channels together.",
     "Sync. All": "Syncs keying across matching controls so related body parts stay together.",
     "IK": "Inverse kinematics lets you move a hand or foot and have the limb follow.",
     "FK": "Forward kinematics rotates each joint in order, like shoulder then elbow then wrist.",
@@ -182,6 +197,9 @@ EASY_TOOLTIP_TEXT = {
     "Input Type": "Choose whether the character is driven by a control rig, skeleton, actor, or another source.",
     "Input Source": "Choose the exact control rig, character, or device sending motion into this character.",
     "Plot Character": "Bakes the current character motion into regular keys so it can be saved or edited.",
+    "Plot": "Bakes procedural, constraint, or control-rig motion into regular editable keyframes.",
+    "Bake": "Turns driven motion into normal keyframes so it keeps working without the live driver.",
+    "Save": "Writes or bakes the current result so it can be reused safely.",
     "Reset All Properties": "Resets character definition settings back to their defaults.",
     "Character Definition": "Shows the bone map that tells MotionBuilder which bone is each body part.",
     "Character Settings": "Shows solver and retargeting settings for the selected character.",
@@ -190,6 +208,14 @@ EASY_TOOLTIP_TEXT = {
     "What This Tool Helps With": "Quick summary of what Aminate Mobu can do for this scene.",
     "Prop Marker Base Name": "Type the base name Aminate should use when renaming animated prop markers.",
     "Refresh": "Re-read the current scene and refresh Aminate status.",
+    "Search": "Type here to filter the list and find matching scene items faster.",
+    "Filters": "Choose which item types are shown in the list.",
+    "Expand": "Open this item so you can see its children.",
+    "Collapse": "Close this item so its children are hidden.",
+    "Lock": "Prevents accidental changes until you unlock it.",
+    "Unlock": "Allows this item to be edited again.",
+    "Pin": "Keeps this panel or setting visible while you work.",
+    "Close": "Closes this panel or menu.",
     "Scene Cleaner": "Delete user cameras, remove junk default markers, and keep animated prop markers.",
     "Delete Cameras": "Delete user made cameras from the scene.",
     "Delete Markers": "Delete junk default markers and keep animated prop markers.",
@@ -1166,6 +1192,8 @@ _QT_LAUNCHER_TOOLBAR = None
 _QT_LAUNCHER_ACTION = None
 _QT_TOOLTIP_FILTER = None
 _QT_RICH_TOOLTIP = None
+_QT_TOOLTIP_LAST_TEXT = ""
+_QT_TOOLTIP_LAST_SHOWN_AT = 0.0
 _TOAST = None
 _TOAST_QUEUE = []
 _TOAST_ACTIVE = False
@@ -1747,9 +1775,11 @@ def _easy_tooltip_text(text, class_name=""):
     key = _clean_tooltip_key(text)
     if not key:
         return None
+    lower_key = key.lower()
+    if lower_key in ("0", "zero"):
+        return _format_easy_tooltip("Zero", EASY_TOOLTIP_TEXT["Zero"])
     if key in EASY_TOOLTIP_TEXT:
         return _format_easy_tooltip(key, EASY_TOOLTIP_TEXT[key])
-    lower_key = key.lower()
     if re.match(r"take\s+\d+", lower_key):
         return _format_easy_tooltip(key, "This is the active take, which stores one version of your animation.")
     if re.match(r"animlayer\d+", key):
@@ -1760,6 +1790,18 @@ def _easy_tooltip_text(text, class_name=""):
         return _format_easy_tooltip(key, "This shows which Aminate Mobu build is loaded.")
     if "auto" in lower_key and "key" in lower_key:
         return _format_easy_tooltip(key, EASY_TOOLTIP_TEXT["Auto Key"])
+    if "delete" in lower_key and "key" in lower_key:
+        return _format_easy_tooltip("Delete Key", EASY_TOOLTIP_TEXT["Delete Key"])
+    if "remove" in lower_key and "key" in lower_key:
+        return _format_easy_tooltip("Delete Key", EASY_TOOLTIP_TEXT["Delete Key"])
+    if "flat" in lower_key:
+        return _format_easy_tooltip("Flat", EASY_TOOLTIP_TEXT["Flat"])
+    if "disc" in lower_key or "discontinu" in lower_key:
+        return _format_easy_tooltip("Discontinuity", EASY_TOOLTIP_TEXT["Discontinuity"])
+    if "plot" in lower_key:
+        return _format_easy_tooltip("Plot", EASY_TOOLTIP_TEXT["Plot"])
+    if "bake" in lower_key:
+        return _format_easy_tooltip("Bake", EASY_TOOLTIP_TEXT["Bake"])
     if "play" in lower_key and "back" in lower_key:
         return _format_easy_tooltip(key, "Starts or stops playback so you can review motion in time.")
     if "key" in lower_key and ("frame" in lower_key or class_name in ("QPushButton", "QToolButton", "QAction")):
@@ -1795,6 +1837,12 @@ def _tooltip_candidates_from_action(action):
 
 def _tooltip_candidates_from_widget(widget):
     candidates = []
+    try:
+        default_action = widget.defaultAction()
+    except Exception:
+        default_action = None
+    if default_action is not None:
+        candidates.extend(_tooltip_candidates_from_action(default_action))
     for attr in ("text", "title", "windowTitle", "placeholderText", "accessibleName", "toolTip", "statusTip", "whatsThis", "objectName"):
         try:
             value = getattr(widget, attr)()
@@ -1802,7 +1850,54 @@ def _tooltip_candidates_from_widget(widget):
             value = None
         if value:
             candidates.append(value)
+    try:
+        parent = widget.parentWidget()
+    except Exception:
+        parent = None
+    if parent is not None:
+        try:
+            parent_title = parent.windowTitle() or parent.objectName()
+        except Exception:
+            parent_title = ""
+        if parent_title:
+            candidates.append(parent_title)
     return candidates
+
+
+def _icon_only_context_tooltip(widget, class_name=""):
+    if QtWidgets is None or widget is None:
+        return None
+    try:
+        text = _tooltip_sentence(widget.text())
+    except Exception:
+        text = ""
+    if text:
+        return None
+    candidates = " ".join(_tooltip_candidates_from_widget(widget)).lower()
+    try:
+        parent = widget.parentWidget()
+    except Exception:
+        parent = None
+    parent_name = ""
+    if parent is not None:
+        try:
+            parent_name = "{0} {1}".format(parent.metaObject().className(), parent.objectName()).lower()
+        except Exception:
+            parent_name = ""
+    context = "{0} {1}".format(candidates, parent_name)
+    if "transport" in context:
+        return _format_easy_tooltip("Transport Button", "Controls playback or timeline movement. Hover near it to see play, stop, step, or jump behavior.")
+    if "key" in context or "keying" in context:
+        return _format_easy_tooltip("Keying Button", "Works with animation keys for the selected object or character control.")
+    if "character" in context:
+        return _format_easy_tooltip("Character Tool", "Changes character setup, body controls, or HumanIK character editing.")
+    if "resource" in context or "navigator" in context:
+        return _format_easy_tooltip("Browser Button", "Changes how this list is shown, filtered, expanded, or searched.")
+    if "viewer" in context:
+        return _format_easy_tooltip("Viewer Button", "Changes camera navigation, display mode, selection, or scene viewing.")
+    if class_name in ("QToolButton", "QAbstractButton"):
+        return _format_easy_tooltip("Tool Button", "Runs this icon tool. MotionBuilder does not expose a clearer name for this native icon.")
+    return None
 
 
 def _easy_tooltip_for_candidates(candidates, class_name=""):
@@ -1869,6 +1964,8 @@ if QtCore is not None and QtWidgets is not None:
             title, body = _split_easy_tooltip(text)
             if not body:
                 return
+            if self.isVisible() and self.title_label.text() == title and self.body_label.text() == body:
+                return
             self.title_label.setText(title)
             self.body_label.setText(body)
             self.adjustSize()
@@ -1907,13 +2004,18 @@ if QtCore is not None and QtWidgets is not None:
 
 
 def _show_rich_tooltip(text, global_pos):
-    global _QT_RICH_TOOLTIP
+    global _QT_RICH_TOOLTIP, _QT_TOOLTIP_LAST_TEXT, _QT_TOOLTIP_LAST_SHOWN_AT
     if QtWidgets is None or QtCore is None or not text:
         return False
     app = _qt_application()
     if app is None:
         return False
     try:
+        now = _now()
+        if text == _QT_TOOLTIP_LAST_TEXT and now - _QT_TOOLTIP_LAST_SHOWN_AT < 0.35:
+            return True
+        _QT_TOOLTIP_LAST_TEXT = text
+        _QT_TOOLTIP_LAST_SHOWN_AT = now
         if _QT_RICH_TOOLTIP is None:
             _QT_RICH_TOOLTIP = AminateRichTooltip()
         _QT_RICH_TOOLTIP.show_tooltip(text, global_pos)
@@ -1990,6 +2092,8 @@ def _apply_easy_tooltip_to_widget(widget):
         return changed
     tooltip = _easy_tooltip_for_candidates(_tooltip_candidates_from_widget(widget), class_name)
     if not tooltip:
+        tooltip = _icon_only_context_tooltip(widget, class_name)
+    if not tooltip:
         if isinstance(widget, QtWidgets.QLineEdit):
             tooltip = _format_easy_tooltip("Text Field", "Type text here. This changes the value used by the tool.")
         elif isinstance(widget, QtWidgets.QComboBox):
@@ -2061,7 +2165,6 @@ if QtCore is not None and QtWidgets is not None:
                         _hide_rich_tooltip()
                     if event.type() in (
                         QtCore.QEvent.Show,
-                        QtCore.QEvent.Enter,
                         QtCore.QEvent.Polish,
                     ):
                         if QtGui is not None and isinstance(watched, QtGui.QAction):

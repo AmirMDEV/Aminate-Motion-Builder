@@ -2,6 +2,7 @@
 
 ## 2026-04-25
 
+- Improved icon-only and weak MotionBuilder tooltips with default-action lookup, parent-panel context fallback, clearer Zero/Flat/Delete Key explanations, and tooltip reanimation throttling to reduce hover flicker
 - Fixed Quinn T-Pose Frame 0 validation by aiming arms at MotionBuilder's global X axis, stopping the finger pass from rotating the hand/wrist bones, using skeleton-only Auto Map/T-pose by default, and locking the character definition after a clean characterize
 - Reworked MotionBuilder and Aminate tooltips into short explanatory `Title - explanation` help text, added a rich wrapped tooltip popup with a fast open animation, expanded transport/keying/character/constraint tooltip coverage, and verified the live host refreshed 261 tooltip targets
 - Fixed the live MotionBuilder viewport T-pose path by disabling active character input before posing, removing the stale stance restore from the button flow, adding strict arm-axis validation, and allowing no-selection Auto Map when one clear humanoid skeleton can be inferred
