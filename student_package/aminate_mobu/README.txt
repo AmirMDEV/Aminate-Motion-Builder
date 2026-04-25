@@ -1,4 +1,4 @@
-Aminate Mobu student package
+Aminate Motion Builder student package
 
 Fast install in MotionBuilder:
 1. Unzip this package.

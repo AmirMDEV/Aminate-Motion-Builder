@@ -56,7 +56,7 @@ def build_student_package():
     shutil.copy2(str(REPO_ROOT / LICENSE_FILE_NAME), str(PACKAGE_ROOT / LICENSE_FILE_NAME))
 
     manifest = {
-        "package_name": "Aminate Mobu",
+        "package_name": "Aminate Motion Builder",
         "version": RELEASE_VERSION_LABEL,
         "release_tag": RELEASE_TAG,
         "license": "Aminate Proprietary Source-Available License",
@@ -73,7 +73,7 @@ def build_student_package():
         handle.write("\n")
 
     readme_lines = [
-        "Aminate Mobu student package",
+        "Aminate Motion Builder student package",
         "",
         "Fast install in MotionBuilder:",
         "1. Unzip this package.",

@@ -1,10 +1,24 @@
-# Aminate Mobu 0.1 Beta
+# Aminate Motion Builder 0.1 Beta
 
-This is the first public beta of Aminate Mobu for Autodesk MotionBuilder.
+This is the first public beta of Aminate Motion Builder for Autodesk MotionBuilder.
+
+## Quick Install
+
+1. Download `Aminate_Mobu_v0.1_BETA.zip` from this release.
+2. Unzip it.
+3. Drag `Install_Aminate_Mobu.py` into the MotionBuilder viewport.
+4. Aminate opens immediately and installs its startup hook for future MotionBuilder launches.
+5. Restart MotionBuilder if you want to confirm Aminate loads automatically.
 
 ## Premiere Video
 
 `40_Seconds_to_Mocap.mp4` is the main release video. It shows the intended quick flow from imported motion capture to a cleaner, character-ready MotionBuilder setup.
+
+## Feature Videos
+
+- `40_Seconds_to_Mocap.mp4` is the premiere video.
+- `Mobu_Automap_and_Tpose.mp4` shows Auto Map Skeleton and T-Pose Frame 0.
+- `Mobu_Scene_Cleaner.mp4` shows scene cleanup.
 
 ## What Aminate Can Do
 

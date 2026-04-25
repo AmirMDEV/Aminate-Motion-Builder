@@ -1,8 +1,8 @@
-# Aminate
+# Aminate Motion Builder
 
-Aminate Mobu is a MotionBuilder helper for cleaning mocap scenes, preparing HumanIK character definitions, building frame-zero T-poses, managing constraints, and making common MotionBuilder workflows easier to understand.
+Aminate Motion Builder is a MotionBuilder helper for cleaning mocap scenes, preparing HumanIK character definitions, building frame-zero T-poses, managing constraints, and making common MotionBuilder workflows easier to understand.
 
-This is the public beta repository for **Aminate Mobu 0.1 Beta**.
+This is the public beta repository for **Aminate Motion Builder 0.1 Beta**.
 
 ## Install
 
@@ -17,6 +17,26 @@ Manual fallback:
 2. Run `aminate_mobu_package/install_motionbuilder_startup.py`.
 3. Run `aminate_mobu_package/launch_aminate_mobu.py`.
 
+## Feature Videos
+
+### Premiere: 40 Seconds To Mocap
+
+<video src="https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/40_Seconds_to_Mocap.mp4" controls muted playsinline width="100%"></video>
+
+[Open the premiere video](https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/40_Seconds_to_Mocap.mp4)
+
+### Auto Map Skeleton And T-Pose Frame 0
+
+<video src="https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/Mobu_Automap_and_Tpose.mp4" controls muted playsinline width="100%"></video>
+
+[Open the Auto Map and T-Pose video](https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/Mobu_Automap_and_Tpose.mp4)
+
+### Scene Cleaner
+
+<video src="https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/Mobu_Scene_Cleaner.mp4" controls muted playsinline width="100%"></video>
+
+[Open the Scene Cleaner video](https://github.com/AmirMDEV/Aminate/releases/download/v0.1-beta/Mobu_Scene_Cleaner.mp4)
+
 ## Screenshots
 
 ![Aminate modern UI](docs/screenshots/aminate-modern-ui.png)
@@ -24,14 +44,6 @@ Manual fallback:
 ![MotionBuilder clean host reference](docs/screenshots/motionbuilder-clean-host-reference.png)
 
 ![Constraint preview cards](docs/screenshots/constraint-preview-cards.png)
-
-## Videos
-
-The release assets include the feature videos.
-
-- `40_Seconds_to_Mocap.mp4` is the premiere video for the beta release.
-- `Mobu_Automap_and_Tpose.mp4` shows Auto Map Skeleton and T-Pose Frame 0.
-- `Mobu_Scene_Cleaner.mp4` shows scene cleanup.
 
 ## Main Features
 

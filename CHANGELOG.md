@@ -69,6 +69,8 @@
 - Captured a pure host MotionBuilder full-window reference without Aminate open and generated a modern full-window concept mock that preserves the same layout while modernizing iconography and chrome
 # 2026-04-25
 
+- Renamed the public-facing product copy to `Aminate Motion Builder` and moved all release videos onto the README main page with the 40-second premiere video first.
+- Added quick install instructions to the release notes for the GitHub Releases page.
 - Added the public Aminate 0.1 Beta release notes, public README, screenshot references, and drag/drop MotionBuilder installer flow.
 - Added `Install_Aminate_Mobu.py` to the student package so users can drag the installer into the MotionBuilder viewport.
 - Updated the source-available license repository link to `https://github.com/AmirMDEV/Aminate`.

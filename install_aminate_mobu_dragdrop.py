@@ -6,7 +6,7 @@ import sys
 import traceback
 
 
-PACKAGE_NAME = "Aminate Mobu"
+PACKAGE_NAME = "Aminate Motion Builder"
 INSTALL_VERSION = "v0.1-beta"
 PAYLOAD_FOLDER = "aminate_mobu_package"
 
@@ -75,7 +75,7 @@ def install_and_launch():
     startup_text = "\n".join(written) if written else "No MotionBuilder startup folders were detected."
     _message(
         "Aminate installed",
-        "Aminate Mobu 0.1 Beta is installed.\n\nStartup hooks:\n{0}\n\nRestart MotionBuilder any time to load Aminate automatically.".format(
+        "Aminate Motion Builder 0.1 Beta is installed.\n\nStartup hooks:\n{0}\n\nRestart MotionBuilder any time to load Aminate automatically.".format(
             startup_text
         ),
     )
