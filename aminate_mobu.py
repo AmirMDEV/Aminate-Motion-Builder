@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 7
+QT_PANEL_BUILD_VERSION = 8
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -130,19 +130,60 @@ EASY_TOOLTIP_TEXT = {
     "Display": "Choose what the Viewer draws, like grids, helpers, and models.",
     "Renderer": "Choose how the Viewer draws the scene.",
     "Transport Controls": "Play, stop, scrub, and move through time.",
-    "Story": "Build clip based timing and non linear animation.",
+    "Auto Key": "Creates a key when you change something that already has animation keys, so edits get recorded while you work.",
+    "AutoKey": "Creates a key when you change something that already has animation keys, so edits get recorded while you work.",
+    "Key": "Adds a keyframe at the current time for the selected object or character control.",
+    "Move Keys": "Moves selected animation keys in time without changing the object shape or pose directly.",
+    "Play": "Starts playback so you can watch the animation at the current frame rate.",
+    "Stop": "Stops playback and leaves the time slider where it is.",
+    "Go To Start": "Moves the time slider to the first frame of the take.",
+    "Go To End": "Moves the time slider to the last frame of the take.",
+    "Previous Key": "Jumps to the previous keyframe on the active animation.",
+    "Next Key": "Jumps to the next keyframe on the active animation.",
+    "Previous Frame": "Moves one frame backward.",
+    "Next Frame": "Moves one frame forward.",
+    "Loop": "Repeats playback between the start and end frames.",
+    "Snap on Frames": "Forces keys and scrubbing to land on whole frames instead of in-between times.",
+    "30 fps": "Shows the frame rate used for playback and timing.",
+    "24 fps": "Shows the frame rate used for playback and timing.",
+    "1x": "Plays the timeline at normal speed.",
     "Action": "Work with action clips and their timing.",
+    "Take": "A take is one version of the animation, like a separate recording pass.",
+    "Take 001": "This is the active take, which stores one version of your animation.",
+    "BaseAnimation": "Base animation is the main animation layer underneath extra correction layers.",
     "Navigator": "Browse everything in the scene.",
     "Dopesheet": "See and move keys in a simple timeline view.",
     "FCurves": "Edit animation curves and smooth motion.",
+    "Story": "Arrange animation clips on tracks, like editing a video timeline.",
+    "Animation Trigger": "Set up events that make animation actions happen automatically.",
     "Key Controls": "Change how keys are created, moved, flattened, and synced.",
+    "TR": "Key translation and rotation channels.",
+    "Zero": "Resets the selected control value back to zero.",
+    "Flat": "Flattens selected animation keys so motion eases smoothly through them.",
+    "Disc.": "Creates a hard change between keys instead of a smooth curve.",
+    "Sync. All": "Syncs keying across matching controls so related body parts stay together.",
+    "IK": "Inverse kinematics lets you move a hand or foot and have the limb follow.",
+    "FK": "Forward kinematics rotates each joint in order, like shoulder then elbow then wrist.",
     "Resources": "Browse assets, scripts, templates, and scene resources.",
+    "Pose Controls": "Browse saved poses and pose tools for characters.",
+    "Properties": "Shows editable settings for the selected object.",
+    "Filters": "Limits what the list shows so you can find things faster.",
     "Character Controls": "Create, define, characterize, and drive characters.",
+    "Character": "Choose which character the Character Controls panel edits.",
+    "Source": "Choose the motion source that drives this character, such as another character or mocap.",
     "Create": "Make a new actor or control rig.",
     "Actor": "Create an actor setup for device or optical data.",
     "Control Rig": "Build an animatable rig with controls.",
     "Define": "Connect skeleton parts to a character definition.",
     "Skeleton": "Map skeleton bones into the character system.",
+    "Definition": "Connect bones to the HumanIK body map and check if the character is valid.",
+    "Controls": "Animate the character using HumanIK body controls.",
+    "Input Type": "Choose whether the character is driven by a control rig, skeleton, actor, or another source.",
+    "Input Source": "Choose the exact control rig, character, or device sending motion into this character.",
+    "Plot Character": "Bakes the current character motion into regular keys so it can be saved or edited.",
+    "Reset All Properties": "Resets character definition settings back to their defaults.",
+    "Character Definition": "Shows the bone map that tells MotionBuilder which bone is each body part.",
+    "Character Settings": "Shows solver and retargeting settings for the selected character.",
     "Actions": "Main Aminate tools for cleaning, mapping, and setup checks.",
     "Notes": "Simple rules and reminders for how Aminate behaves.",
     "What This Tool Helps With": "Quick summary of what Aminate Mobu can do for this scene.",
@@ -160,6 +201,11 @@ EASY_TOOLTIP_TEXT = {
     "Body Part Mode": "Switch the control rig into body part editing mode.",
     "Full Body Mode": "Switch the control rig into full body editing mode.",
     "History Timeline": "Open the History Timeline tool for full scene snapshot branches.",
+    "Name": "Shows the item name.",
+    "Type": "Shows what kind of item this is.",
+    "Active": "Shows whether this item is switched on right now.",
+    "Weight": "Controls how strongly this constraint affects its object.",
+    "Targets": "Shows the objects this constraint follows or points at.",
     "Definition Manager": "Save and reload character definition presets.",
     "Refresh Definitions": "Reload the saved definition preset list.",
     "Save Definition": "Save the current character definition links as a reusable preset.",
@@ -1118,6 +1164,7 @@ _QT_DOCK = None
 _QT_LAUNCHER_TOOLBAR = None
 _QT_LAUNCHER_ACTION = None
 _QT_TOOLTIP_FILTER = None
+_QT_RICH_TOOLTIP = None
 _TOAST = None
 _TOAST_QUEUE = []
 _TOAST_ACTIVE = False
@@ -1666,10 +1713,33 @@ def prime_app_theme_baseline(force_reset=False):
 def _clean_tooltip_key(text):
     if not text:
         return ""
-    cleaned = re.sub(r"\s+", " ", str(text).replace("&", " ")).strip()
+    cleaned = re.sub(r"<[^>]+>", " ", str(text))
+    cleaned = cleaned.replace("&nbsp;", " ").replace("&amp;", "&")
+    cleaned = re.sub(r"\s+", " ", cleaned.replace("&", " ")).strip()
+    if " - " in cleaned:
+        cleaned = cleaned.split(" - ", 1)[0].strip()
     while cleaned.endswith(":"):
         cleaned = cleaned[:-1].rstrip()
     return cleaned
+
+
+def _tooltip_sentence(text):
+    cleaned = re.sub(r"<[^>]+>", " ", str(text or ""))
+    cleaned = cleaned.replace("&nbsp;", " ").replace("&amp;", "&")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def _format_easy_tooltip(title, body):
+    title = _clean_tooltip_key(title) or "Help"
+    body = _tooltip_sentence(body)
+    if not body:
+        return None
+    if body.lower().startswith((title + " -").lower()):
+        return body
+    if len(body) > 170:
+        body = body[:167].rstrip() + "..."
+    return "{0} - {1}".format(title, body)
 
 
 def _easy_tooltip_text(text, class_name=""):
@@ -1677,55 +1747,209 @@ def _easy_tooltip_text(text, class_name=""):
     if not key:
         return None
     if key in EASY_TOOLTIP_TEXT:
-        return EASY_TOOLTIP_TEXT[key]
+        return _format_easy_tooltip(key, EASY_TOOLTIP_TEXT[key])
     lower_key = key.lower()
     if re.match(r"take\s+\d+", lower_key):
-        return "This is the active take, which stores one version of your animation."
+        return _format_easy_tooltip(key, "This is the active take, which stores one version of your animation.")
     if re.match(r"animlayer\d+", key):
-        return "This animation layer stores one stack of keys on top of the base animation."
+        return _format_easy_tooltip(key, "This animation layer stores one stack of keys on top of the base animation.")
     if lower_key == "none":
-        return "Nothing is set here yet."
+        return _format_easy_tooltip(key, "Nothing is set here yet.")
     if "version" in lower_key and "beta" in lower_key:
-        return "This shows which Aminate Mobu build is loaded."
+        return _format_easy_tooltip(key, "This shows which Aminate Mobu build is loaded.")
+    if "auto" in lower_key and "key" in lower_key:
+        return _format_easy_tooltip(key, EASY_TOOLTIP_TEXT["Auto Key"])
+    if "play" in lower_key and "back" in lower_key:
+        return _format_easy_tooltip(key, "Starts or stops playback so you can review motion in time.")
+    if "key" in lower_key and ("frame" in lower_key or class_name in ("QPushButton", "QToolButton", "QAction")):
+        return _format_easy_tooltip(key, "Adds or edits animation keys at the current time.")
     if class_name == "QPushButton":
-        return "Click to use {0}.".format(lower_key)
+        return _format_easy_tooltip(key, "Click this button to run {0}.".format(lower_key))
     if class_name == "QToolButton":
-        return "Click to open or use {0}.".format(lower_key)
+        return _format_easy_tooltip(key, "Click this small tool button to open or use {0}.".format(lower_key))
     if class_name == "QAction":
-        return "Open {0} options.".format(lower_key)
+        return _format_easy_tooltip(key, "Open {0} options or run that command.".format(lower_key))
     if class_name == "QMenu":
-        return "Open the {0} menu.".format(lower_key)
+        return _format_easy_tooltip(key, "Open this menu to find {0} commands.".format(lower_key))
     if class_name == "QGroupBox":
-        return "This section is about {0}.".format(lower_key)
+        return _format_easy_tooltip(key, "This section groups controls for {0}.".format(lower_key))
     if class_name == "QTabBar":
-        return "Open the {0} tab.".format(lower_key)
+        return _format_easy_tooltip(key, "Open this tab to see {0} tools.".format(lower_key))
     if class_name == "QLabel":
-        return "This label shows {0}.".format(lower_key)
+        return _format_easy_tooltip(key, "This label shows {0}.".format(lower_key))
     return None
+
+
+def _tooltip_candidates_from_action(action):
+    candidates = []
+    for attr in ("text", "toolTip", "statusTip", "whatsThis"):
+        try:
+            value = getattr(action, attr)()
+        except Exception:
+            value = None
+        if value:
+            candidates.append(value)
+    return candidates
+
+
+def _tooltip_candidates_from_widget(widget):
+    candidates = []
+    for attr in ("text", "title", "windowTitle", "placeholderText", "accessibleName", "toolTip", "statusTip", "whatsThis", "objectName"):
+        try:
+            value = getattr(widget, attr)()
+        except Exception:
+            value = None
+        if value:
+            candidates.append(value)
+    return candidates
+
+
+def _easy_tooltip_for_candidates(candidates, class_name=""):
+    for candidate in candidates:
+        tooltip = _easy_tooltip_text(candidate, class_name)
+        if tooltip:
+            return tooltip
+    return None
+
+
+def _split_easy_tooltip(text):
+    cleaned = _tooltip_sentence(text)
+    if " - " in cleaned:
+        title, body = cleaned.split(" - ", 1)
+    else:
+        title, body = "Help", cleaned
+    title = _clean_tooltip_key(title) or "Help"
+    return title, body.strip()
+
+
+if QtCore is not None and QtWidgets is not None:
+    class AminateRichTooltip(QtWidgets.QFrame):
+        def __init__(self, parent=None):
+            super(AminateRichTooltip, self).__init__(parent)
+            self.setWindowFlags(QtCore.Qt.ToolTip | QtCore.Qt.FramelessWindowHint)
+            self.setAttribute(QtCore.Qt.WA_ShowWithoutActivating, True)
+            self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
+            self.setObjectName("aminateRichTooltip")
+            self.setStyleSheet(
+                """
+                QFrame#aminateRichTooltip {
+                    background-color: #111820;
+                    color: #EAF2F8;
+                    border: 1px solid #4E718A;
+                    border-radius: 10px;
+                }
+                QLabel#aminateRichTooltipTitle {
+                    color: #FFFFFF;
+                    font-size: 12px;
+                    font-weight: 700;
+                }
+                QLabel#aminateRichTooltipBody {
+                    color: #C9D6E0;
+                    font-size: 11px;
+                    line-height: 140%;
+                }
+                """
+            )
+            layout = QtWidgets.QVBoxLayout(self)
+            layout.setContentsMargins(12, 10, 12, 10)
+            layout.setSpacing(4)
+            self.title_label = QtWidgets.QLabel()
+            self.title_label.setObjectName("aminateRichTooltipTitle")
+            self.body_label = QtWidgets.QLabel()
+            self.body_label.setObjectName("aminateRichTooltipBody")
+            self.body_label.setWordWrap(True)
+            self.body_label.setMinimumWidth(300)
+            self.body_label.setMaximumWidth(360)
+            layout.addWidget(self.title_label)
+            layout.addWidget(self.body_label)
+            self._animation_group = None
+
+        def show_tooltip(self, text, global_pos):
+            title, body = _split_easy_tooltip(text)
+            if not body:
+                return
+            self.title_label.setText(title)
+            self.body_label.setText(body)
+            self.adjustSize()
+            width = min(max(self.width(), 280), 390)
+            height = self.height()
+            try:
+                screen = QtWidgets.QApplication.screenAt(global_pos)
+            except Exception:
+                screen = None
+            primary = QtWidgets.QApplication.primaryScreen()
+            geometry = screen.availableGeometry() if screen else primary.availableGeometry()
+            x = min(global_pos.x() + 18, geometry.right() - width - 8)
+            y = min(global_pos.y() + 20, geometry.bottom() - height - 8)
+            x = max(geometry.left() + 8, x)
+            y = max(geometry.top() + 8, y)
+            end_rect = QtCore.QRect(x, y, width, height)
+            start_rect = QtCore.QRect(x + 12, y + 8, max(120, int(width * 0.72)), max(40, int(height * 0.65)))
+            self.setGeometry(start_rect)
+            self.setWindowOpacity(0.0)
+            self.show()
+            self.raise_()
+            self._animation_group = QtCore.QParallelAnimationGroup(self)
+            opacity_anim = QtCore.QPropertyAnimation(self, b"windowOpacity")
+            opacity_anim.setDuration(130)
+            opacity_anim.setStartValue(0.0)
+            opacity_anim.setEndValue(1.0)
+            geometry_anim = QtCore.QPropertyAnimation(self, b"geometry")
+            geometry_anim.setDuration(150)
+            geometry_anim.setEasingCurve(QtCore.QEasingCurve.OutCubic)
+            geometry_anim.setStartValue(start_rect)
+            geometry_anim.setEndValue(end_rect)
+            self._animation_group.addAnimation(opacity_anim)
+            self._animation_group.addAnimation(geometry_anim)
+            self._animation_group.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
+            QtCore.QTimer.singleShot(7000, self.hide)
+
+
+def _show_rich_tooltip(text, global_pos):
+    global _QT_RICH_TOOLTIP
+    if QtWidgets is None or QtCore is None or not text:
+        return False
+    app = _qt_application()
+    if app is None:
+        return False
+    try:
+        if _QT_RICH_TOOLTIP is None:
+            _QT_RICH_TOOLTIP = AminateRichTooltip()
+        _QT_RICH_TOOLTIP.show_tooltip(text, global_pos)
+        return True
+    except Exception:
+        return False
+
+
+def _hide_rich_tooltip():
+    try:
+        if _QT_RICH_TOOLTIP is not None:
+            _QT_RICH_TOOLTIP.hide()
+    except Exception:
+        pass
 
 
 def _apply_easy_tooltip_to_action(action):
     if action is None:
         return False
-    text = None
-    try:
-        text = action.text()
-    except Exception:
-        text = None
-    tooltip = _easy_tooltip_text(text, "QAction")
+    tooltip = _easy_tooltip_for_candidates(_tooltip_candidates_from_action(action), "QAction")
     if not tooltip:
         return False
     changed = False
     try:
-        if not action.toolTip():
+        if action.toolTip() != tooltip:
             action.setToolTip(tooltip)
             changed = True
     except Exception:
         pass
     try:
-        if not action.statusTip():
+        if action.statusTip() != tooltip:
             action.setStatusTip(tooltip)
             changed = True
+    except Exception:
+        pass
+    try:
+        action.setProperty("aminateEasyTooltip", tooltip)
     except Exception:
         pass
     return changed
@@ -1757,33 +1981,39 @@ def _apply_easy_tooltip_to_widget(widget):
             if not tooltip:
                 continue
             try:
-                if not widget.tabToolTip(index):
+                if widget.tabToolTip(index) != tooltip:
                     widget.setTabToolTip(index, tooltip)
                     changed = True
             except Exception:
                 continue
         return changed
-    tooltip = _easy_tooltip_text(_extract_widget_text(widget), class_name)
+    tooltip = _easy_tooltip_for_candidates(_tooltip_candidates_from_widget(widget), class_name)
     if not tooltip:
         if isinstance(widget, QtWidgets.QLineEdit):
-            tooltip = "Type text here."
+            tooltip = _format_easy_tooltip("Text Field", "Type text here. This changes the value used by the tool.")
         elif isinstance(widget, QtWidgets.QComboBox):
-            tooltip = "Choose one option from this list."
+            tooltip = _format_easy_tooltip("Dropdown", "Choose one option from this list.")
         elif isinstance(widget, QtWidgets.QPlainTextEdit):
-            tooltip = "This area shows more detailed text output."
+            tooltip = _format_easy_tooltip("Text Area", "This area shows detailed output or notes.")
+        elif isinstance(widget, (QtWidgets.QTableWidget, QtWidgets.QTreeWidget, QtWidgets.QListWidget)):
+            tooltip = _format_easy_tooltip("List", "Select an item here to view or edit that part of the scene.")
     if not tooltip:
         return False
     changed = False
     try:
-        if not widget.toolTip():
+        if widget.toolTip() != tooltip:
             widget.setToolTip(tooltip)
             changed = True
     except Exception:
         pass
     try:
-        if hasattr(widget, "setStatusTip") and not widget.statusTip():
+        if hasattr(widget, "setStatusTip") and widget.statusTip() != tooltip:
             widget.setStatusTip(tooltip)
             changed = True
+    except Exception:
+        pass
+    try:
+        widget.setProperty("aminateEasyTooltip", tooltip)
     except Exception:
         pass
     try:
@@ -1822,15 +2052,33 @@ if QtCore is not None and QtWidgets is not None:
             try:
                 if watched is not None and event is not None:
                     if event.type() in (
+                        QtCore.QEvent.Leave,
+                        QtCore.QEvent.MouseButtonPress,
+                        QtCore.QEvent.WindowDeactivate,
+                        QtCore.QEvent.Hide,
+                    ):
+                        _hide_rich_tooltip()
+                    if event.type() in (
                         QtCore.QEvent.Show,
                         QtCore.QEvent.Enter,
                         QtCore.QEvent.Polish,
-                        QtCore.QEvent.ToolTip,
                     ):
                         if QtGui is not None and isinstance(watched, QtGui.QAction):
                             _apply_easy_tooltip_to_action(watched)
                         elif isinstance(watched, QtWidgets.QWidget):
                             _apply_easy_tooltip_to_widget(watched)
+                    if event.type() == QtCore.QEvent.ToolTip and isinstance(watched, QtWidgets.QWidget):
+                        _apply_easy_tooltip_to_widget(watched)
+                        tooltip = ""
+                        try:
+                            tooltip = watched.property("aminateEasyTooltip") or watched.toolTip()
+                        except Exception:
+                            tooltip = ""
+                        if tooltip:
+                            global_pos = event.globalPos() if hasattr(event, "globalPos") else watched.mapToGlobal(QtCore.QPoint(0, 0))
+                            if _show_rich_tooltip(tooltip, global_pos):
+                                event.accept()
+                                return True
             except Exception:
                 pass
             return False

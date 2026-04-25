@@ -2,6 +2,7 @@
 
 ## 2026-04-25
 
+- Reworked MotionBuilder and Aminate tooltips into short explanatory `Title - explanation` help text, added a rich wrapped tooltip popup with a fast open animation, expanded transport/keying/character/constraint tooltip coverage, and verified the live host refreshed 261 tooltip targets
 - Fixed the live MotionBuilder viewport T-pose path by disabling active character input before posing, removing the stale stance restore from the button flow, adding strict arm-axis validation, and allowing no-selection Auto Map when one clear humanoid skeleton can be inferred
 - Restored compatible roll-bone mapping with a MotionBuilder validation fallback, and fixed T-Pose Frame 0 so stance pose happens before final arm alignment instead of knocking the arms off the X axis
 - Fixed Auto Map and T-Pose characterization so invalid roll-bone links are cleared only when MotionBuilder rejects them, and T-Pose Frame 0 re-characterizes after setting stance so the Definition tab can turn fully green
