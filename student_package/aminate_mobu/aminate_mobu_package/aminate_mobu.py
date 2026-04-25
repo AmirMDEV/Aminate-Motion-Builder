@@ -1184,6 +1184,10 @@ CHARACTER_SLOT_CANDIDATES = OrderedDict(
 )
 
 ROLL_LINK_SLOTS = tuple(slot_name for slot_name in CHARACTER_SLOT_CANDIDATES if "RollLink" in slot_name)
+RETARGET_OPTIONAL_MATCH_SLOTS = tuple(
+    ["Spine{0}Link".format(index) for index in range(1, 10)]
+    + ["Neck1Link", "Neck2Link"]
+)
 
 _TOOL = None
 _QT_TOOL = None
@@ -2861,24 +2865,39 @@ def _property_first_src(prop):
         return None
 
 
-def _key_property_at_time(prop, time_value):
+def _key_property_at_time(prop, time_value, values=None):
     if prop is None:
         return 0
     try:
         prop.SetAnimated(True)
     except Exception:
         pass
-    try:
-        prop.KeyAt(time_value)
-        return 1
-    except Exception:
-        pass
+    if values is None:
+        try:
+            prop.KeyAt(time_value)
+            return 1
+        except Exception:
+            pass
     try:
         node = prop.GetAnimationNode()
     except Exception:
         node = None
+    if values is not None:
+        try:
+            values = [float(item) for item in values]
+        except Exception:
+            try:
+                values = [float(values)]
+            except Exception:
+                values = []
+    else:
+        values = []
+    try:
+        wanted_seconds = float(time_value.GetSecondDouble())
+    except Exception:
+        wanted_seconds = None
     keyed = 0
-    for child in getattr(node, "Nodes", []) or []:
+    for child_index, child in enumerate(getattr(node, "Nodes", []) or []):
         fcurve = getattr(child, "FCurve", None)
         if fcurve is None:
             try:
@@ -2888,6 +2907,35 @@ def _key_property_at_time(prop, time_value):
                 fcurve = None
         if fcurve is None:
             continue
+        value = values[child_index] if child_index < len(values) else None
+        if value is not None:
+            try:
+                key_index = fcurve.KeyAdd(time_value, value)
+                if key_index is not None and int(key_index) >= 0:
+                    try:
+                        fcurve.KeySetValue(int(key_index), value)
+                    except Exception:
+                        pass
+                    keyed += 1
+            except Exception:
+                pass
+            try:
+                key_count = len(fcurve.Keys)
+            except Exception:
+                key_count = 0
+            for key_index in range(key_count):
+                try:
+                    key_time = fcurve.KeyGetTime(key_index)
+                    key_seconds = float(key_time.GetSecondDouble()) if wanted_seconds is not None else None
+                    same_time = bool(key_time == time_value)
+                    if key_seconds is not None:
+                        same_time = abs(key_seconds - wanted_seconds) <= 0.000001
+                    if same_time:
+                        fcurve.KeySetValue(key_index, value)
+                except Exception:
+                    pass
+            if value is not None:
+                continue
         try:
             child.KeyAdd(time_value)
             keyed += 1
@@ -2900,6 +2948,25 @@ def _key_property_at_time(prop, time_value):
         except Exception:
             pass
     return keyed
+
+
+def _model_local_vector(model, transform_type):
+    vector = FBVector3d()
+    try:
+        model.GetVector(vector, transform_type, False)
+        return (float(vector[0]), float(vector[1]), float(vector[2]))
+    except Exception:
+        return None
+
+
+def _key_model_property_at_time(model, prop_name, time_value):
+    prop = model.PropertyList.Find(prop_name)
+    values = None
+    if prop_name == "Lcl Translation":
+        values = _model_local_vector(model, FBModelTransformationType.kModelTranslation)
+    elif prop_name == "Lcl Rotation":
+        values = _model_local_vector(model, FBModelTransformationType.kModelRotation)
+    return _key_property_at_time(prop, time_value, values=values)
 
 
 def _character_summary(character):
@@ -3858,6 +3925,23 @@ def _clear_roll_links(character):
     return cleared
 
 
+def _harmonize_optional_retarget_slots(target_character, source_character):
+    if target_character is None or source_character is None or target_character is source_character:
+        return []
+    removed = []
+    for slot_name in RETARGET_OPTIONAL_MATCH_SLOTS:
+        if _character_slot_model(source_character, slot_name) is not None:
+            continue
+        if _character_slot_model(target_character, slot_name) is None:
+            continue
+        prop = target_character.PropertyList.Find(slot_name, False)
+        if prop is None:
+            continue
+        _disconnect_all_sources(prop)
+        removed.append(slot_name)
+    return removed
+
+
 def _set_characterized(character, enabled):
     if character is None:
         return False, ""
@@ -4540,22 +4624,16 @@ def _direction_between(character, start_slot, end_slot, fallback=None):
 
 
 def _tpose_reference_axes(character):
-    up = (
-        _direction_between(character, "HipsLink", "HeadLink")
-        or _direction_between(character, "SpineLink", "HeadLink")
-        or (0.0, 1.0, 0.0)
-    )
     side_hint = (
         _direction_between(character, "RightArmLink", "LeftArmLink")
         or _direction_between(character, "RightShoulderLink", "LeftShoulderLink")
         or _direction_between(character, "RightUpLegLink", "LeftUpLegLink")
         or (1.0, 0.0, 0.0)
     )
-    # MotionBuilder's definition check expects arms parallel to the global X axis.
-    # Body-derived side vectors can follow a bad raised-arm pose and keep the warning alive.
+    # MotionBuilder's definition check expects a world-upright stance: spine on Y,
+    # arms on X. Body-derived axes can preserve a bad forward lean.
+    up = (0.0, 1.0, 0.0)
     left = (1.0, 0.0, 0.0) if _v_dot(side_hint, (1.0, 0.0, 0.0)) >= 0.0 else (-1.0, 0.0, 0.0)
-    forward = _v_norm(_v_cross(left, up), (0.0, 0.0, 1.0))
-    left = _v_norm(_v_cross(up, forward), left)
     return {
         "up": up,
         "down": _v_mul(up, -1.0),
@@ -4566,9 +4644,16 @@ def _tpose_reference_axes(character):
 
 def _align_tpose_chain(character, slots, direction):
     aligned = 0
-    for parent_slot, child_slot in zip(slots, slots[1:]):
-        parent = _character_slot_model(character, parent_slot)
-        child = _character_slot_model(character, child_slot)
+    existing = []
+    seen = set()
+    for slot_name in slots:
+        model = _character_slot_model(character, slot_name)
+        model_name = _component_long_name(model)
+        if model is None or not model_name or model_name in seen:
+            continue
+        seen.add(model_name)
+        existing.append((slot_name, model))
+    for (_parent_slot, parent), (_child_slot, child) in zip(existing, existing[1:]):
         if parent is None or child is None:
             continue
         if _align_model_segment(parent, child, direction):
@@ -4644,6 +4729,33 @@ def _tpose_arm_axis_report(character):
     }
 
 
+def _tpose_body_axis_report(character):
+    axes = _tpose_reference_axes(character)
+    checks = (
+        ("HipsLink", "SpineLink", axes["up"]),
+        ("SpineLink", "HeadLink", axes["up"]),
+        ("LeftUpLegLink", "LeftLegLink", axes["down"]),
+        ("LeftLegLink", "LeftFootLink", axes["down"]),
+        ("RightUpLegLink", "RightLegLink", axes["down"]),
+        ("RightLegLink", "RightFootLink", axes["down"]),
+    )
+    dots = []
+    failures = []
+    for start_slot, end_slot, target in checks:
+        direction = _direction_between(character, start_slot, end_slot)
+        if direction is None:
+            continue
+        dot = _v_dot(direction, target)
+        dots.append(dot)
+        if dot < TPOSE_AXIS_DOT_THRESHOLD:
+            failures.append("{0}->{1} {2:.3f}".format(start_slot, end_slot, dot))
+    return {
+        "min_dot": min(dots) if dots else 0.0,
+        "failures": failures,
+        "ok": bool(dots) and not failures,
+    }
+
+
 def _preferred_tpose_character_or_error():
     current = _current_character()
     if current is not None and _character_input_character(current) is not None:
@@ -4684,7 +4796,7 @@ def _ordered_tpose_characters(character):
     return unique
 
 
-def _make_single_character_tpose_on_frame_zero(character, key_skeleton=True, key_control_rig=False):
+def _make_single_character_tpose_on_frame_zero(character, key_skeleton=True, key_control_rig=False, retarget_source=None):
     _set_current_character(character)
     was_characterized = bool(character.GetCharacterize())
     if not was_characterized:
@@ -4698,6 +4810,7 @@ def _make_single_character_tpose_on_frame_zero(character, key_skeleton=True, key
         pass
     _set_character_definition_lock(character, False)
     _set_characterize_off(character)
+    harmonized_slots = _harmonize_optional_retarget_slots(character, retarget_source)
 
     player = FBPlayerControl()
     frame_zero = FBTime(0, 0, 0, 0)
@@ -4713,7 +4826,8 @@ def _make_single_character_tpose_on_frame_zero(character, key_skeleton=True, key
     characterize_result, characterize_error, cleared_roll_links = _characterize_with_roll_fallback(character)
     _set_current_character(character)
     axis_report = _tpose_arm_axis_report(character)
-    if not axis_report["ok"]:
+    body_report = _tpose_body_axis_report(character)
+    if not axis_report["ok"] or not body_report["ok"]:
         _set_characterize_off(character)
         aligned_segments += _apply_skeleton_tpose(character)
         _evaluate_scene()
@@ -4721,8 +4835,9 @@ def _make_single_character_tpose_on_frame_zero(character, key_skeleton=True, key
         cleared_roll_links += cleared_roll_links_retry
         _set_current_character(character)
         axis_report = _tpose_arm_axis_report(character)
+        body_report = _tpose_body_axis_report(character)
     _restore_character_input_state(character, input_state, restore_active_input=False)
-    stance_pose_ok = bool(character.GetCharacterize()) and not bool(characterize_error) and bool(axis_report["ok"])
+    stance_pose_ok = bool(character.GetCharacterize()) and not bool(characterize_error) and bool(axis_report["ok"]) and bool(body_report["ok"])
 
     keyed_models = 0
     keyed_channels = 0
@@ -4730,7 +4845,7 @@ def _make_single_character_tpose_on_frame_zero(character, key_skeleton=True, key
         if not key_control_rig and _component_long_name(model).find("_Ctrl:") >= 0:
             continue
         for prop_name in CONTROL_RIG_PROPERTY_NAMES:
-            keyed = _key_property_at_time(model.PropertyList.Find(prop_name), frame_zero)
+            keyed = _key_model_property_at_time(model, prop_name, frame_zero)
             if keyed:
                 keyed_channels += keyed
         keyed_models += 1
@@ -4741,7 +4856,7 @@ def _make_single_character_tpose_on_frame_zero(character, key_skeleton=True, key
             if model is None:
                 continue
             for prop_name in CONTROL_RIG_PROPERTY_NAMES:
-                keyed_channels += _key_property_at_time(model.PropertyList.Find(prop_name), frame_zero)
+                keyed_channels += _key_model_property_at_time(model, prop_name, frame_zero)
 
     try:
         player.Goto(frame_zero, FBTimeReferential.kFBTimeReferentialEdit)
@@ -4765,6 +4880,9 @@ def _make_single_character_tpose_on_frame_zero(character, key_skeleton=True, key
         "characterize_error": characterize_error,
         "tpose_axis_min_dot": axis_report["min_dot"],
         "tpose_axis_failures": axis_report["failures"],
+        "tpose_body_min_dot": body_report["min_dot"],
+        "tpose_body_failures": body_report["failures"],
+        "harmonized_retarget_slots": harmonized_slots,
         "input_source": _component_long_name(_character_input_character(character)),
         "active_input_after": bool(getattr(character, "ActiveInput", False)),
     }
@@ -4778,10 +4896,12 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False):
         return error
     results = []
     for item in _ordered_tpose_characters(character):
+        retarget_source = _character_input_character(item) if item is character else None
         result = _make_single_character_tpose_on_frame_zero(
             item,
             key_skeleton=key_skeleton,
             key_control_rig=key_control_rig,
+            retarget_source=retarget_source,
         )
         results.append(result)
         if not result.get("ok"):
@@ -4794,16 +4914,17 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False):
         if item.get("character_name")
     ]
     _append_status(
-        "T-Pose Frame 0 keyed {0}: frame 0 only, {1} character(s), green check {2}, arm axis {3:.3f}. Source link kept, input left off for definition check.".format(
+        "T-Pose Frame 0 keyed {0}: frame 0 only, {1} character(s), green check {2}, arm axis {3:.3f}, body axis {4:.3f}. Source link kept, input left off for definition check.".format(
             character.LongName,
             len(results),
             result.get("stance_pose_ok"),
             result.get("tpose_axis_min_dot", 0.0),
+            result.get("tpose_body_min_dot", 0.0),
         )
     )
     for item in results:
         _append_status(
-            "T-Pose detail {0} on {1}: {2} segment(s), {3} model(s), {4} channel key(s), green check {5}, arm axis {6:.3f}.".format(
+            "T-Pose detail {0} on {1}: {2} segment(s), {3} model(s), {4} channel key(s), green check {5}, arm axis {6:.3f}, body axis {7:.3f}.".format(
                 item.get("character_name"),
                 selected_skeleton_scope_label(),
                 item.get("aligned_segments"),
@@ -4811,6 +4932,7 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False):
                 item.get("keyed_channels"),
                 item.get("stance_pose_ok"),
                 item.get("tpose_axis_min_dot", 0.0),
+                item.get("tpose_body_min_dot", 0.0),
             )
         )
         characterize_error = item.get("characterize_error")
@@ -4818,6 +4940,13 @@ def make_tpose_on_frame_zero(key_skeleton=True, key_control_rig=False):
             clean_warning = _sanitize_motionbuilder_warning_text(characterize_error)
             if clean_warning:
                 _append_status("MotionBuilder warnings: {0}".format(clean_warning.replace("\n", " | ")))
+        harmonized = item.get("harmonized_retarget_slots") or []
+        if harmonized:
+            _append_status(
+                "Retarget match removed target-only optional slot(s): {0}.".format(
+                    ", ".join(harmonized)
+                )
+            )
     return result
 
 

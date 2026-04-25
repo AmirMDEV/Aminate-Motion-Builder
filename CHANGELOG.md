@@ -2,6 +2,7 @@
 
 ## 2026-04-25
 
+- Improved T-Pose Frame 0 again so source and target characters use a true world-upright Y-axis body stance, align through missing spine/neck slots, key current local transforms instead of stale frame-0 values, and remove target-only optional spine/neck definition slots when retargeting from a simpler source
 - Replaced constraint tutorial GIFs with simple imagegen-based static PNG explanation cards and made the Constraints Manager preview scale with the Aminate panel size
 - Fixed T-Pose Frame 0 in multi-character retarget scenes so it prefers the active target character over a stale selected source bone, T-poses the linked source and target on frame 0, preserves the source dropdown, and leaves input inactive for a green Definition check before reactivating retarget
 - Improved icon-only and weak MotionBuilder tooltips with default-action lookup, parent-panel context fallback, clearer Zero/Flat/Delete Key explanations, and tooltip reanimation throttling to reduce hover flicker
