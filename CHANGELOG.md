@@ -2,6 +2,7 @@
 
 ## 2026-04-25
 
+- Replaced the stale MotionBuilder theme restore with a deterministic dark native-style host fallback so the File/Edit toolbar and standard buttons no longer drop to the old Windows-style chrome
 - Fixed MotionBuilder startup so Aminate opens directly in the Modern UI, and changed MotionBuilder theme restore to use the live native baseline instead of forcing an old saved layout snapshot
 - Added compressed animated constraint tutorial GIF previews with a hover/selection preview panel in Constraints Manager plus a reusable generator script for refreshing the demo assets
 - Filtered Constraints Manager to show only user-facing asset-browser constraints such as Position, Rotation, Aim, Parent-Child, Relation, Chain IK, Spline IK, Expression, Path, and Rigid Body, while hiding HIK solvers and character internals

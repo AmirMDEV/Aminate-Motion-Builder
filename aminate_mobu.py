@@ -418,7 +418,158 @@ QScrollBar::sub-line {
 """,
 }
 APP_THEME_STYLESHEETS = {
-THEME_MOTIONBUILDER: "",
+THEME_MOTIONBUILDER: """
+QWidget {
+    color: #E4E8EC;
+    background-color: #3A3F44;
+    selection-background-color: #6A7D8D;
+    selection-color: #FFFFFF;
+}
+QMainWindow,
+QDialog,
+QDockWidget,
+QTabWidget::pane,
+QStackedWidget,
+QStatusBar,
+QToolBar,
+QMenuBar,
+QMenu,
+QAbstractScrollArea,
+QTreeView,
+QListView,
+QTableView {
+    background-color: #3B4045;
+}
+QDockWidget::title {
+    background-color: #454A50;
+    color: #F1F4F6;
+    padding-left: 6px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #2E3337;
+}
+QDockWidget {
+    border: 1px solid #2E3337;
+}
+QMenuBar {
+    background-color: #34393E;
+    border-bottom: 1px solid #272B2F;
+}
+QMenuBar::item {
+    background: transparent;
+    color: #F1F4F6;
+    padding: 3px 7px;
+    margin: 0px 1px;
+}
+QMenuBar::item:selected,
+QMenuBar::item:pressed {
+    background-color: #4B5258;
+}
+QMenu {
+    background-color: #3C4146;
+    color: #F1F4F6;
+    border: 1px solid #25292D;
+}
+QMenu::item {
+    padding: 5px 22px;
+}
+QMenu::item:selected {
+    background-color: #59616A;
+}
+QToolBar {
+    background-color: #44494F;
+    border: 0px;
+    spacing: 2px;
+}
+QToolBar::separator {
+    background-color: #2D3135;
+    width: 1px;
+    margin: 3px 3px;
+}
+QPushButton,
+QToolButton,
+QAbstractButton,
+QComboBox,
+QAbstractSpinBox,
+QLineEdit,
+QPlainTextEdit,
+QTextEdit {
+    background-color: #4D5359;
+    color: #F2F5F7;
+    border: 1px solid #24282C;
+    border-radius: 1px;
+    padding: 3px 7px;
+}
+QPushButton:hover,
+QToolButton:hover,
+QAbstractButton:hover,
+QComboBox:hover,
+QAbstractSpinBox:hover,
+QLineEdit:hover {
+    background-color: #596068;
+}
+QPushButton:pressed,
+QToolButton:pressed,
+QAbstractButton:pressed {
+    background-color: #363B40;
+}
+QComboBox::drop-down {
+    width: 16px;
+    border-left: 1px solid #30353A;
+    background-color: #464C52;
+}
+QAbstractItemView {
+    background-color: #30353A;
+    color: #EEF2F5;
+    border: 1px solid #25292D;
+    outline: 0px;
+}
+QAbstractItemView::item:selected {
+    background-color: #637381;
+    color: #FFFFFF;
+}
+QHeaderView::section {
+    background-color: #494F55;
+    color: #F1F4F6;
+    border: 1px solid #2D3135;
+    padding: 3px 6px;
+}
+QTabWidget::pane {
+    border: 1px solid #2E3337;
+    background-color: #3B4045;
+}
+QTabBar::tab {
+    background-color: #454B51;
+    color: #E6EAED;
+    border: 1px solid #2D3135;
+    padding: 4px 9px;
+    margin-right: 1px;
+}
+QTabBar::tab:selected {
+    background-color: #59616A;
+    color: #FFFFFF;
+}
+QTreeView,
+QListView,
+QTableView {
+    background-color: #2E3338;
+    alternate-background-color: #383D42;
+    gridline-color: #555B61;
+    border: 1px solid #2D3135;
+}
+QTreeView::item,
+QListView::item,
+QTableView::item {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+QTreeView::item:selected,
+QListView::item:selected,
+QTableView::item:selected {
+    background-color: #6A7D8D;
+    color: #FFFFFF;
+}
+""",
 THEME_MODERN: """
 QWidget {
     color: #D6DDE4;
@@ -1494,7 +1645,9 @@ def prime_app_theme_baseline(force_reset=False):
     if not force_reset and _APP_THEME_BASELINE is not None and _APP_THEME_BASELINE_PALETTE is not None:
         return True
     current_stylesheet = app.styleSheet() or ""
-    if force_reset or _theme_string_is_modern(current_stylesheet):
+    if _theme_string_is_modern(current_stylesheet) and not force_reset:
+        return False
+    if force_reset:
         _reset_to_best_effort_native(app)
         current_stylesheet = app.styleSheet() or ""
     _APP_THEME_BASELINE = current_stylesheet
@@ -1703,6 +1856,50 @@ def _copy_palette(palette):
         return None
 
 
+def _make_motionbuilder_dark_palette():
+    if QtGui is None:
+        return None
+    palette = QtGui.QPalette()
+    colors = {
+        QtGui.QPalette.Window: QtGui.QColor("#3A3F44"),
+        QtGui.QPalette.WindowText: QtGui.QColor("#EEF2F5"),
+        QtGui.QPalette.Base: QtGui.QColor("#2E3338"),
+        QtGui.QPalette.AlternateBase: QtGui.QColor("#383D42"),
+        QtGui.QPalette.ToolTipBase: QtGui.QColor("#3F454A"),
+        QtGui.QPalette.ToolTipText: QtGui.QColor("#F4F7F9"),
+        QtGui.QPalette.Text: QtGui.QColor("#EEF2F5"),
+        QtGui.QPalette.Button: QtGui.QColor("#4D5359"),
+        QtGui.QPalette.ButtonText: QtGui.QColor("#F2F5F7"),
+        QtGui.QPalette.BrightText: QtGui.QColor("#FFFFFF"),
+        QtGui.QPalette.Highlight: QtGui.QColor("#6A7D8D"),
+        QtGui.QPalette.HighlightedText: QtGui.QColor("#FFFFFF"),
+        QtGui.QPalette.Light: QtGui.QColor("#5E656C"),
+        QtGui.QPalette.Midlight: QtGui.QColor("#535A61"),
+        QtGui.QPalette.Mid: QtGui.QColor("#454B51"),
+        QtGui.QPalette.Dark: QtGui.QColor("#2D3135"),
+        QtGui.QPalette.Shadow: QtGui.QColor("#202428"),
+        QtGui.QPalette.Link: QtGui.QColor("#9AB7D2"),
+        QtGui.QPalette.LinkVisited: QtGui.QColor("#B6C6D6"),
+        QtGui.QPalette.PlaceholderText: QtGui.QColor("#AAB2BA"),
+    }
+    for role, color in colors.items():
+        try:
+            palette.setColor(role, color)
+        except Exception:
+            pass
+    try:
+        disabled_text = QtGui.QColor("#858B91")
+        disabled_bg = QtGui.QColor("#373C41")
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.ButtonText, disabled_text)
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text, disabled_text)
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.WindowText, disabled_text)
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Button, disabled_bg)
+        palette.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Base, QtGui.QColor("#30353A"))
+    except Exception:
+        pass
+    return palette
+
+
 def _make_modern_dark_palette():
     if QtGui is None:
         return None
@@ -1820,26 +2017,34 @@ def _app_theme_stylesheet(theme_key):
     return APP_THEME_STYLESHEETS[_normalize_theme_key(theme_key)]
 
 
+def _apply_motionbuilder_host_theme(app=None):
+    global _APP_THEME_OWNED
+    app = app or _qt_application()
+    if app is None:
+        return False
+    try:
+        app.setStyle("Fusion")
+    except Exception:
+        pass
+    palette = _make_motionbuilder_dark_palette()
+    if palette is not None:
+        try:
+            app.setPalette(palette)
+        except Exception:
+            pass
+    app.setStyleSheet(_app_theme_stylesheet(THEME_MOTIONBUILDER))
+    _APP_THEME_OWNED = False
+    _refresh_qt_theme()
+    return True
+
+
 def _restore_app_theme():
     global _APP_THEME_BASELINE, _APP_THEME_OWNED, _APP_THEME_BASELINE_PALETTE, _APP_THEME_BASELINE_STYLE
     app = _qt_application()
     _sync_baseline_from_app_cache(app)
     if app is None or not _APP_THEME_OWNED:
         return False
-    try:
-        if _APP_THEME_BASELINE_STYLE:
-            app.setStyle(_APP_THEME_BASELINE_STYLE)
-    except Exception:
-        pass
-    try:
-        if _APP_THEME_BASELINE_PALETTE is not None:
-            app.setPalette(_APP_THEME_BASELINE_PALETTE)
-    except Exception:
-        pass
-    app.setStyleSheet(_APP_THEME_BASELINE or "")
-    _APP_THEME_OWNED = False
-    _refresh_qt_theme()
-    return True
+    return _apply_motionbuilder_host_theme(app)
 
 
 def _apply_app_theme(theme_key):
@@ -1850,21 +2055,7 @@ def _apply_app_theme(theme_key):
     theme_key = _normalize_theme_key(theme_key)
     prime_app_theme_baseline()
     if theme_key == THEME_MOTIONBUILDER:
-        try:
-            if _APP_THEME_BASELINE_STYLE:
-                app.setStyle(_APP_THEME_BASELINE_STYLE)
-        except Exception:
-            pass
-        try:
-            if _APP_THEME_BASELINE_PALETTE is not None:
-                app.setPalette(_APP_THEME_BASELINE_PALETTE)
-        except Exception:
-            pass
-        app.setStyleSheet(_APP_THEME_BASELINE or "")
-        _APP_THEME_OWNED = False
-        _store_baseline_on_app(app)
-        _refresh_qt_theme()
-        return True
+        return _apply_motionbuilder_host_theme(app)
     try:
         app.setStyle("Fusion")
     except Exception:
@@ -4693,6 +4884,7 @@ def launch_aminate_mobu():
     prime_app_theme_baseline()
     ensure_native_default_ui_snapshot(force=True)
     set_active_theme(THEME_MODERN)
+    _apply_app_theme(THEME_MODERN)
     _ensure_aminate_launcher_toolbar()
     install_easy_motionbuilder_tooltips()
     if QtWidgets is not None and hasattr(_qt_host_main_window(), "addDockWidget"):
