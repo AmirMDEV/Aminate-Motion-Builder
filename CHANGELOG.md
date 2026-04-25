@@ -2,6 +2,7 @@
 
 ## 2026-04-25
 
+- Fixed Auto Map character naming so new skeleton definitions increment from existing `animate_auto_1`, `animate_auto_2`, etc. instead of reusing the current generated character for a different skeleton
 - Improved Auto Map Skeleton so selecting any number of bones or a skinned mesh automatically selects the matching skeleton hierarchy, with clear UI instructions and no required Use Selected Skeleton step
 - Replaced the stale MotionBuilder theme restore with a deterministic dark native-style host fallback so the File/Edit toolbar and standard buttons no longer drop to the old Windows-style chrome
 - Fixed MotionBuilder startup so Aminate opens directly in the Modern UI, and changed MotionBuilder theme restore to use the live native baseline instead of forcing an old saved layout snapshot

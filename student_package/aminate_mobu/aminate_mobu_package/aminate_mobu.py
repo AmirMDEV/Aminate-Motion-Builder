@@ -3378,12 +3378,17 @@ def _unique_character_name(base_name):
 
 def _unique_numbered_character_name(prefix):
     existing = {_component_short_name(character) for character in FBSystem().Scene.Characters}
-    counter = 1
-    while True:
-        candidate = "{0}_{1}".format(prefix, counter)
-        if candidate not in existing:
-            return candidate
-        counter += 1
+    highest = 0
+    pattern = re.compile(r"^{0}_(\d+)$".format(re.escape(prefix)))
+    for name in existing:
+        match = pattern.match(name)
+        if not match:
+            continue
+        try:
+            highest = max(highest, int(match.group(1)))
+        except Exception:
+            pass
+    return "{0}_{1}".format(prefix, highest + 1)
 
 
 def _is_animate_auto_character(character):
@@ -3411,9 +3416,9 @@ def _rename_to_animate_auto(character):
 
 def _auto_map_target_character(namespace_label):
     current = _current_character()
-    if current is not None and _is_animate_auto_character(current):
+    if current is not None and _is_animate_auto_character(current) and _character_matches_skeleton_scope(current):
         return current, False
-    if current is not None and _is_aminate_generated_character(current):
+    if current is not None and _is_aminate_generated_character(current) and _character_matches_skeleton_scope(current):
         return _rename_to_animate_auto(current), False
     character_name = _unique_numbered_character_name("animate_auto")
     return FBCharacter(character_name), True
