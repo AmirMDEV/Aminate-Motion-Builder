@@ -132,6 +132,7 @@ Prop Take Offset Manager helps with the common mocap prop problem where a prop c
 It can:
 
 - store selected prop constraint offsets on the current take;
+- preview the detected prop offset before any keys are changed;
 - loop through all takes and store take-specific offsets;
 - temporarily mute selected constraints while the prop is positioned for setup;
 - restore the selected constraints after setup;
@@ -142,8 +143,9 @@ The intended workflow is:
 1. Go to the take that needs fixing.
 2. Select the prop constraint in Aminate's Constraints Manager.
 3. Place the prop correctly.
-4. Click `Set Offset For This Take`.
-5. Repeat on other takes, or use `Set Offset For All Takes` once the setup is ready.
+4. Click `Preview Offset Only` to check the detected values.
+5. Click `Set Offset For This Take`.
+6. Repeat on other takes, or use `Set Offset For All Takes` once the setup is ready.
 
 ### Modern UI
 

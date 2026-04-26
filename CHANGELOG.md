@@ -69,6 +69,7 @@
 - Captured a pure host MotionBuilder full-window reference without Aminate open and generated a modern full-window concept mock that preserves the same layout while modernizing iconography and chrome
 # 2026-04-25
 
+- Added Preview Offset Only so prop take offsets can be inspected before any keys are changed.
 - Added Prop Take Offset Manager controls for setting selected prop constraint offsets on the current take, all takes, and muting/restoring constraints for setup.
 - Renamed the release zip to `Aminate_Motion_Builder_v0.1_BETA.zip` and reshaped it so the main folder only contains the drag-and-drop installer plus the `install_files` folder.
 - Updated public links for the `Aminate-Motion-Builder` repository slug.

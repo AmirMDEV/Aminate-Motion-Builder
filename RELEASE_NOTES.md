@@ -29,7 +29,7 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 - **T-Pose Frame 0**: keys a MotionBuilder-friendly T-pose on frame 0 so source and target characters can be prepared for cleaner retargeting.
 - **Definition Manager**: saves, loads, renames, and removes reusable skeleton definitions from inside Aminate.
 - **Constraints Manager**: focuses on the useful MotionBuilder constraint assets, adds short visual explanations, supports easier naming, and helps with keying and bake/plot workflows.
-- **Prop Take Offset Manager**: stores selected prop constraint offsets per take so props can start in different places without forcing an immediate bake loop on every take.
+- **Prop Take Offset Manager**: previews and stores selected prop constraint offsets per take so props can start in different places without forcing an immediate bake loop on every take.
 - **Modern UI**: switches Aminate into a cleaner modern MotionBuilder-style UI while preserving the default MotionBuilder UI return path.
 - **Rich tooltips**: explains buttons and icon-only tools in plain language so the workflow is easier to learn.
 - **History Timeline**: saves full-scene snapshots, restores snapshots, supports milestones, branching, snapshot caps, and Auto History.

@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 14
+QT_PANEL_BUILD_VERSION = 15
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -253,6 +253,7 @@ EASY_TOOLTIP_TEXT = {
     "Key Selected Props": "Key useful constraint properties at the current time.",
     "Set Offset For This Take": "Store the current prop constraint offset on this take so the prop keeps the right hand or marker relationship here.",
     "Set Offset For All Takes": "Visit every take and store the current prop constraint offset on each take.",
+    "Preview Offset Only": "Show the detected prop constraint offset without changing or keying anything.",
     "Mute Constraints For Setup": "Temporarily turn selected prop constraints off so you can place the prop cleanly before capturing an offset.",
     "Restore Constraints": "Turn constraints back on after setup and restore their previous active states.",
     "Bake Options": "Open MotionBuilder plotting options before saving constrained motion.",
@@ -3926,6 +3927,35 @@ def _constraint_offset_preview_line(constraint, offset_values):
     return "{0}: Offset T [{1}]  Offset R [{2}]".format(name, translation, rotation)
 
 
+def preview_prop_offset(constraints=None):
+    global _LAST_PROP_OFFSET_PREVIEW
+    constraints = _selected_or_actionable_constraints(constraints)
+    take_name = _take_label()
+    if not constraints:
+        message = "Prop Take Offset Preview: no user-facing constraints found on {0}.".format(take_name)
+        _append_status(message)
+        return {"ok": False, "error": message, "preview": []}
+    preview_lines = []
+    missing_offset = []
+    for constraint in constraints:
+        if not _constraint_offset_properties(constraint):
+            missing_offset.append(_short_name_from_long_name(_component_long_name(constraint)))
+            continue
+        offset_values = _constraint_world_offset_values(constraint)
+        preview_line = _constraint_offset_preview_line(constraint, offset_values)
+        preview_lines.append(preview_line)
+        _append_status("Prop Take Offset preview: {0}".format(preview_line))
+    if preview_lines:
+        _LAST_PROP_OFFSET_PREVIEW = preview_lines[-1]
+        _append_status("Prop Take Offset Preview: found {0} offset preview(s) on {1}. No keys were changed.".format(len(preview_lines), take_name))
+        if missing_offset:
+            _append_status("No editable offset property found on: {0}".format(", ".join(missing_offset[:4])))
+        return {"ok": True, "preview": list(preview_lines), "take": take_name}
+    message = "Prop Take Offset Preview: no editable offset properties found. Try Parent/Child, Position, Rotation, or Multi-Referential constraints."
+    _append_status(message)
+    return {"ok": False, "error": message, "preview": []}
+
+
 def _selected_or_actionable_constraints(constraints=None):
     if constraints is not None:
         selected = []
@@ -5610,6 +5640,11 @@ def _on_key_constraints(control=None, event=None):
     _refresh_dashboard()
 
 
+def _on_preview_prop_offset(control=None, event=None):
+    preview_prop_offset(_scene_constraints())
+    _refresh_dashboard()
+
+
 def _on_prop_offset_this_take(control=None, event=None):
     set_prop_offset_for_take(_scene_constraints())
     _refresh_dashboard()
@@ -5886,8 +5921,9 @@ if QtWidgets:
             prop_offset_buttons = QtWidgets.QGridLayout()
             prop_offset_buttons.setHorizontalSpacing(5)
             prop_offset_buttons.setVerticalSpacing(4)
-            prop_offset_buttons.addWidget(self._action_button("Set Offset For This Take", self._set_prop_offset_this_take), 0, 0)
-            prop_offset_buttons.addWidget(self._action_button("Set Offset For All Takes", self._set_prop_offset_all_takes), 0, 1)
+            prop_offset_buttons.addWidget(self._action_button("Preview Offset Only", self._preview_prop_offset_only), 0, 0)
+            prop_offset_buttons.addWidget(self._action_button("Set Offset For This Take", self._set_prop_offset_this_take), 0, 1)
+            prop_offset_buttons.addWidget(self._action_button("Set Offset For All Takes", self._set_prop_offset_all_takes), 0, 2)
             prop_offset_buttons.addWidget(self._action_button("Mute Constraints For Setup", self._mute_prop_constraints_setup), 1, 0)
             prop_offset_buttons.addWidget(self._action_button("Restore Constraints", self._restore_prop_constraints_setup), 1, 1)
             prop_offset_layout.addLayout(prop_offset_buttons)
@@ -6134,6 +6170,14 @@ if QtWidgets:
             key_constraint_properties(selected)
             _refresh_dashboard()
 
+        def _preview_prop_offset_only(self):
+            selected = self._selected_constraints_from_table()
+            if not selected:
+                selected = _scene_constraints()
+            result = preview_prop_offset(selected)
+            self._refresh_prop_offset_status(result)
+            _refresh_dashboard()
+
         def _set_prop_offset_this_take(self):
             selected = self._selected_constraints_from_table()
             if not selected:
@@ -6325,6 +6369,7 @@ def _populate_tool_layout(tool):
     container.Add(row, 28)
 
     row = pyfbsdk_additions.FBHBoxLayout(FBAttachType.kFBAttachLeft)
+    row.Add(_button("Preview Offset Only", _on_preview_prop_offset, color=(0.18, 0.30, 0.38)), 180)
     row.Add(_button("Set Offset For This Take", _on_prop_offset_this_take, color=(0.24, 0.34, 0.40)), 190)
     row.Add(_button("Set Offset For All Takes", _on_prop_offset_all_takes, color=(0.24, 0.34, 0.40)), 190)
     row.Add(_button("Mute Constraints For Setup", _on_mute_prop_constraints, color=(0.20, 0.28, 0.36)), 210)
