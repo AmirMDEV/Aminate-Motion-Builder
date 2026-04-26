@@ -3910,9 +3910,19 @@ def _constraint_world_offset_values(constraint):
 
 
 def _selected_or_actionable_constraints(constraints=None):
-    selected = _actionable_constraints(constraints)
-    if selected:
-        return selected
+    if constraints is not None:
+        selected = []
+        for constraint in constraints:
+            try:
+                if isinstance(constraint, FBConstraint):
+                    selected.append(constraint)
+                    continue
+            except Exception:
+                pass
+            if "Constraint" in type(constraint).__name__:
+                selected.append(constraint)
+        if selected:
+            return selected
     return _actionable_constraints(_scene_constraints())
 
 
