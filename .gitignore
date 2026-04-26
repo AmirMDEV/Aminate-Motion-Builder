@@ -8,3 +8,4 @@ scratch_*.json
 *_report.json
 _tmp*
 mobu_history_test/
+scratch/

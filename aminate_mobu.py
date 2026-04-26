@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 15
+QT_PANEL_BUILD_VERSION = 16
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -3760,6 +3760,8 @@ def save_current_character_motion(plot_where):
 
 
 _MUTED_PROP_CONSTRAINT_STATES = OrderedDict()
+_PROP_TAKE_OFFSET_VALUES = OrderedDict()
+_PROP_TAKE_OFFSET_APPLYING = False
 _LAST_PROP_OFFSET_PREVIEW = "No prop offset captured yet."
 
 
@@ -3790,6 +3792,7 @@ def _set_current_take(take):
     try:
         FBSystem().CurrentTake = take
         _evaluate_scene()
+        apply_prop_offsets_for_current_take()
         return True
     except Exception:
         return False
@@ -3862,6 +3865,19 @@ def _set_property_data(prop, values):
     return False
 
 
+def _find_property_by_name(component, property_name):
+    try:
+        prop = component.PropertyList.Find(property_name, False)
+    except Exception:
+        prop = None
+    if prop is not None:
+        return prop
+    for candidate in getattr(component, "PropertyList", []) or []:
+        if str(getattr(candidate, "Name", "") or candidate) == str(property_name):
+            return candidate
+    return None
+
+
 def _constraint_offset_property_kind(prop):
     name = getattr(prop, "Name", "") or str(prop)
     normalized = _normalize_name(name)
@@ -3909,6 +3925,53 @@ def _constraint_world_offset_values(constraint):
     if source_r is not None and driven_r is not None:
         values["rotation"] = tuple(_wrap_euler_delta(driven_r[index] - source_r[index]) for index in range(3))
     return values
+
+
+def _find_constraint_by_long_name(long_name):
+    for constraint in _scene_constraints():
+        if _component_long_name(constraint) == long_name:
+            return constraint
+    return None
+
+
+def _store_prop_take_offsets(constraint, prop_values, take_name=None):
+    constraint_name = _component_long_name(constraint)
+    take_name = take_name or _take_label()
+    if not constraint_name or not take_name:
+        return
+    if constraint_name not in _PROP_TAKE_OFFSET_VALUES:
+        _PROP_TAKE_OFFSET_VALUES[constraint_name] = OrderedDict()
+    _PROP_TAKE_OFFSET_VALUES[constraint_name][take_name] = list(prop_values)
+
+
+def apply_prop_offsets_for_current_take():
+    global _PROP_TAKE_OFFSET_APPLYING
+    if _PROP_TAKE_OFFSET_APPLYING:
+        return {"ok": False, "applied": 0}
+    take_name = _take_label()
+    if not _PROP_TAKE_OFFSET_VALUES:
+        return {"ok": True, "applied": 0}
+    _PROP_TAKE_OFFSET_APPLYING = True
+    applied = 0
+    try:
+        for constraint_name, take_map in list(_PROP_TAKE_OFFSET_VALUES.items()):
+            payload = take_map.get(take_name)
+            if not payload:
+                continue
+            constraint = _find_constraint_by_long_name(constraint_name)
+            if constraint is None:
+                continue
+            for item in payload:
+                prop = _find_property_by_name(constraint, item.get("property", ""))
+                values = item.get("values")
+                if prop is not None and values and _set_property_data(prop, values):
+                    applied += 1
+        if applied:
+            _evaluate_scene()
+            _append_status("Prop Take Offset: applied {0} stored offset propertie(s) for {1}.".format(applied, take_name))
+        return {"ok": True, "applied": applied, "take": take_name}
+    finally:
+        _PROP_TAKE_OFFSET_APPLYING = False
 
 
 def _format_offset_vector(values):
@@ -4000,6 +4063,7 @@ def set_prop_offset_for_take(constraints=None, time_value=None):
         preview_lines.append(preview_line)
         _append_status("Prop Take Offset detected: {0}".format(preview_line))
         changed_here = 0
+        stored_props = []
         for prop, kind in offset_props:
             values = None
             if kind in ("translation", "rotation"):
@@ -4011,6 +4075,11 @@ def set_prop_offset_for_take(constraints=None, time_value=None):
                 values = _property_data_values(prop)
             if values:
                 _set_property_data(prop, values)
+                stored_props.append({
+                    "property": str(getattr(prop, "Name", "") or prop),
+                    "kind": kind,
+                    "values": [float(item) for item in values[:3]],
+                })
             keyed = _key_property_at_time(prop, time_value, values=values)
             properties_keyed += keyed
             changed_here += keyed
@@ -4023,6 +4092,8 @@ def set_prop_offset_for_take(constraints=None, time_value=None):
                 properties_keyed += _key_property_at_time(prop, time_value)
         if changed_here:
             constraints_changed += 1
+            if stored_props:
+                _store_prop_take_offsets(constraint, stored_props, take_name=take_name)
     if constraints_changed:
         if preview_lines:
             _LAST_PROP_OFFSET_PREVIEW = preview_lines[-1]
@@ -5446,6 +5517,10 @@ def _on_scene_change(control, event):
         maybe_warn_lock_definition(character)
 
 
+def _on_take_change(control, event):
+    apply_prop_offsets_for_current_take()
+
+
 def _on_connection_data_notify(control, event):
     plug = getattr(event, "Plug", None)
     if plug is None:
@@ -5481,6 +5556,10 @@ def install_runtime_watchers():
     system = FBSystem()
     app = FBApplication()
     system.Scene.OnChange.Add(_on_scene_change)
+    try:
+        system.Scene.OnTakeChange.Add(_on_take_change)
+    except Exception:
+        pass
     system.OnConnectionDataNotify.Add(_on_connection_data_notify)
     app.OnFileExit.Add(_on_file_exit)
     _CALLBACKS_INSTALLED = True
@@ -5494,6 +5573,10 @@ def remove_runtime_watchers():
     app = FBApplication()
     try:
         system.Scene.OnChange.Remove(_on_scene_change)
+    except Exception:
+        pass
+    try:
+        system.Scene.OnTakeChange.Remove(_on_take_change)
     except Exception:
         pass
     try:

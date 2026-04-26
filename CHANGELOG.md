@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-26
+
+- Added take-aware Prop Take Offset reapply so stored prop constraint offsets are restored when switching between MotionBuilder takes during a session.
+- Verified Prop Take Offset Manager in an empty MotionBuilder scene across two separate takes, with different stored offsets on each take.
+- Rebuilt the Aminate Motion Builder 0.1 Beta install package after the multi-take prop offset fix.
+
 ## 2026-04-25
 
 - Fixed Constraints Manager preview images so they scale uniformly with letterboxing instead of stretching wide or tall when the Aminate panel is resized
