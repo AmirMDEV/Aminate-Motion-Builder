@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 13
+QT_PANEL_BUILD_VERSION = 14
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -3759,6 +3759,7 @@ def save_current_character_motion(plot_where):
 
 
 _MUTED_PROP_CONSTRAINT_STATES = OrderedDict()
+_LAST_PROP_OFFSET_PREVIEW = "No prop offset captured yet."
 
 
 def _current_take():
@@ -3909,6 +3910,22 @@ def _constraint_world_offset_values(constraint):
     return values
 
 
+def _format_offset_vector(values):
+    if not values:
+        return "none"
+    try:
+        return ", ".join("{0:.3f}".format(float(value)) for value in values[:3])
+    except Exception:
+        return str(values)
+
+
+def _constraint_offset_preview_line(constraint, offset_values):
+    name = _short_name_from_long_name(_component_long_name(constraint)) or "Constraint"
+    translation = _format_offset_vector(offset_values.get("translation"))
+    rotation = _format_offset_vector(offset_values.get("rotation"))
+    return "{0}: Offset T [{1}]  Offset R [{2}]".format(name, translation, rotation)
+
+
 def _selected_or_actionable_constraints(constraints=None):
     if constraints is not None:
         selected = []
@@ -3927,6 +3944,7 @@ def _selected_or_actionable_constraints(constraints=None):
 
 
 def set_prop_offset_for_take(constraints=None, time_value=None):
+    global _LAST_PROP_OFFSET_PREVIEW
     constraints = _selected_or_actionable_constraints(constraints)
     if time_value is None:
         try:
@@ -3941,12 +3959,16 @@ def set_prop_offset_for_take(constraints=None, time_value=None):
     constraints_changed = 0
     properties_keyed = 0
     missing_offset = []
+    preview_lines = []
     for constraint in constraints:
         offset_props = _constraint_offset_properties(constraint)
         if not offset_props:
             missing_offset.append(_short_name_from_long_name(_component_long_name(constraint)))
             continue
         offset_values = _constraint_world_offset_values(constraint)
+        preview_line = _constraint_offset_preview_line(constraint, offset_values)
+        preview_lines.append(preview_line)
+        _append_status("Prop Take Offset detected: {0}".format(preview_line))
         changed_here = 0
         for prop, kind in offset_props:
             values = None
@@ -3972,6 +3994,8 @@ def set_prop_offset_for_take(constraints=None, time_value=None):
         if changed_here:
             constraints_changed += 1
     if constraints_changed:
+        if preview_lines:
+            _LAST_PROP_OFFSET_PREVIEW = preview_lines[-1]
         message = "Prop Take Offset: keyed {0} offset propertie(s) on {1} constraint(s) for {2}.".format(
             properties_keyed,
             constraints_changed,
@@ -3980,7 +4004,13 @@ def set_prop_offset_for_take(constraints=None, time_value=None):
         _append_status(message)
         if missing_offset:
             _append_status("No editable offset property found on: {0}".format(", ".join(missing_offset[:4])))
-        return {"ok": True, "constraints": constraints_changed, "properties": properties_keyed, "take": take_name}
+        return {
+            "ok": True,
+            "constraints": constraints_changed,
+            "properties": properties_keyed,
+            "take": take_name,
+            "preview": list(preview_lines),
+        }
     message = "Prop Take Offset: no editable offset properties found. Try selecting Parent/Child, Position, Rotation, or Multi-Referential constraints."
     _append_status(message)
     return {"ok": False, "error": message, "constraints": 0, "properties": properties_keyed}
@@ -5848,6 +5878,11 @@ if QtWidgets:
             prop_offset_hint.setWordWrap(True)
             prop_offset_hint.setToolTip("Use this when a prop hand constraint works on one take but breaks on another because the prop starts somewhere else.")
             prop_offset_layout.addWidget(prop_offset_hint)
+            self.prop_offset_status = QtWidgets.QLabel(_LAST_PROP_OFFSET_PREVIEW)
+            self.prop_offset_status.setObjectName("aminateMobuGroupHint")
+            self.prop_offset_status.setWordWrap(True)
+            self.prop_offset_status.setToolTip("Shows the last detected translation and rotation offset before Aminate keyed it.")
+            prop_offset_layout.addWidget(self.prop_offset_status)
             prop_offset_buttons = QtWidgets.QGridLayout()
             prop_offset_buttons.setHorizontalSpacing(5)
             prop_offset_buttons.setVerticalSpacing(4)
@@ -6103,14 +6138,16 @@ if QtWidgets:
             selected = self._selected_constraints_from_table()
             if not selected:
                 selected = _scene_constraints()
-            set_prop_offset_for_take(selected)
+            result = set_prop_offset_for_take(selected)
+            self._refresh_prop_offset_status(result)
             self._refresh_constraints_manager()
 
         def _set_prop_offset_all_takes(self):
             selected = self._selected_constraints_from_table()
             if not selected:
                 selected = _scene_constraints()
-            set_prop_offset_for_all_takes(selected)
+            result = set_prop_offset_for_all_takes(selected)
+            self._refresh_prop_offset_status(result)
             self._refresh_constraints_manager()
 
         def _mute_prop_constraints_setup(self):
@@ -6126,6 +6163,15 @@ if QtWidgets:
                 selected = _scene_constraints()
             restore_prop_constraints_after_setup(selected)
             self._refresh_constraints_manager()
+
+        def _refresh_prop_offset_status(self, result=None):
+            label = getattr(self, "prop_offset_status", None)
+            if label is None:
+                return
+            if result and result.get("preview"):
+                label.setText(result["preview"][-1])
+            else:
+                label.setText(_LAST_PROP_OFFSET_PREVIEW)
 
         def _open_bake_options(self):
             open_constraint_bake_options()
