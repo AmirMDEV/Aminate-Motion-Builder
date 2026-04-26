@@ -21,6 +21,7 @@ Current functions:
 - T-Pose Frame 0 keys a MotionBuilder-friendly T-pose on frame 0 for retargeting and character-definition cleanup.
 - Definition Manager saves, loads, renames, and removes reusable skeleton definitions.
 - Constraints Manager lists useful MotionBuilder constraints, explains when to use them, helps rename them, keys them, and opens bake/plot options.
+- Prop Take Offset Manager stores selected prop constraint offsets per take so prop setups can survive different prop starting positions.
 - History Timeline saves full-scene MotionBuilder snapshots with restore, milestones, branching, snapshot caps, and Auto History.
 - Modern UI restyles Aminate and themeable MotionBuilder chrome while keeping the default MotionBuilder UI restore path available.
 - Rich tooltips explain buttons and tool icons in plain language.

@@ -29,6 +29,7 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 - **T-Pose Frame 0**: keys a MotionBuilder-friendly T-pose on frame 0 so source and target characters can be prepared for cleaner retargeting.
 - **Definition Manager**: saves, loads, renames, and removes reusable skeleton definitions from inside Aminate.
 - **Constraints Manager**: focuses on the useful MotionBuilder constraint assets, adds short visual explanations, supports easier naming, and helps with keying and bake/plot workflows.
+- **Prop Take Offset Manager**: stores selected prop constraint offsets per take so props can start in different places without forcing an immediate bake loop on every take.
 - **Modern UI**: switches Aminate into a cleaner modern MotionBuilder-style UI while preserving the default MotionBuilder UI return path.
 - **Rich tooltips**: explains buttons and icon-only tools in plain language so the workflow is easier to learn.
 - **History Timeline**: saves full-scene snapshots, restores snapshots, supports milestones, branching, snapshot caps, and Auto History.
@@ -52,6 +53,7 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 6. Use **Scene Cleaner** before characterization or retargeting when an imported scene contains cameras, junk markers, or capture leftovers.
 7. Use **Definition Manager** to reuse known-good mappings.
 8. Use **Constraints Manager** when setting up parent, position, rotation, aim, IK, path, or relation-style constraint workflows.
+9. Use **Prop Take Offset Manager** when a prop constraint works on one take but needs a different offset on another take.
 
 ## Beta Notes
 

@@ -251,6 +251,10 @@ EASY_TOOLTIP_TEXT = {
     "Rename To Easy Names": "Rename selected constraints to readable Aminate names.",
     "Rename All Easy": "Rename every scene constraint to readable Aminate names.",
     "Key Selected Props": "Key useful constraint properties at the current time.",
+    "Set Offset For This Take": "Store the current prop constraint offset on this take so the prop keeps the right hand or marker relationship here.",
+    "Set Offset For All Takes": "Visit every take and store the current prop constraint offset on each take.",
+    "Mute Constraints For Setup": "Temporarily turn selected prop constraints off so you can place the prop cleanly before capturing an offset.",
+    "Restore Constraints": "Turn constraints back on after setup and restore their previous active states.",
     "Bake Options": "Open MotionBuilder plotting options before saving constrained motion.",
     "Save To Skeleton": "Plot or save the current character motion onto the skeleton.",
     "Save To Control Rig": "Plot or save the current character motion onto the control rig.",
@@ -3510,6 +3514,7 @@ CONSTRAINT_RECOMMENDATIONS = (
     "Aim: use for eyes, cameras, look-at rigs, and any control that must point at a target.",
     "Relation: use for advanced logic, math, remaps, switches, and multi-input rig behaviour.",
     "Chain IK: use for limbs/tails when you need solver-style posing before baking.",
+    "Props across takes: use Set Offset For This Take when the prop starts in a different place on each take.",
     "Always key Weight/Active at the switch frame, then save/bake to Skeleton or Control Rig before cleanup.",
 )
 
@@ -3751,6 +3756,280 @@ def save_current_character_motion(plot_where):
     target = "Skeleton" if plot_where == FBCharacterPlotWhere.kFBCharacterPlotOnSkeleton else "Control Rig"
     _append_status("Saved constrained motion to {0}: {1}.".format(target, bool(result)))
     return {"ok": bool(result), "target": target}
+
+
+_MUTED_PROP_CONSTRAINT_STATES = OrderedDict()
+
+
+def _current_take():
+    try:
+        return FBSystem().CurrentTake
+    except Exception:
+        return None
+
+
+def _take_label(take=None):
+    take = take or _current_take()
+    if take is None:
+        return "Unknown Take"
+    return _short_name_from_long_name(_component_long_name(take)) or str(getattr(take, "Name", "") or "Unknown Take")
+
+
+def _scene_takes():
+    try:
+        return [take for take in list(FBSystem().Scene.Takes) if take is not None]
+    except Exception:
+        return []
+
+
+def _set_current_take(take):
+    if take is None:
+        return False
+    try:
+        FBSystem().CurrentTake = take
+        _evaluate_scene()
+        return True
+    except Exception:
+        return False
+
+
+def _constraint_reference_models(constraint):
+    refs = []
+    try:
+        group_count = int(constraint.ReferenceGroupGetCount())
+    except Exception:
+        group_count = 0
+    for group_index in range(group_count):
+        try:
+            ref_count = int(constraint.ReferenceGetCount(group_index))
+        except Exception:
+            ref_count = 0
+        for ref_index in range(ref_count):
+            try:
+                ref = constraint.ReferenceGet(group_index, ref_index)
+            except Exception:
+                ref = None
+            if isinstance(ref, FBModel) and ref not in refs:
+                refs.append(ref)
+    return refs
+
+
+def _property_data_values(prop):
+    if prop is None:
+        return []
+    try:
+        value = prop.Data
+    except Exception:
+        return []
+    try:
+        if isinstance(value, (str, bytes)):
+            return []
+    except Exception:
+        pass
+    try:
+        return [float(value[index]) for index in range(len(value))]
+    except Exception:
+        pass
+    try:
+        return [float(value)]
+    except Exception:
+        return []
+
+
+def _set_property_data(prop, values):
+    if prop is None or values is None:
+        return False
+    try:
+        values = [float(item) for item in values]
+    except Exception:
+        return False
+    if len(values) >= 3:
+        vector = FBVector3d(values[0], values[1], values[2])
+        for candidate in (vector, (values[0], values[1], values[2]), [values[0], values[1], values[2]]):
+            try:
+                prop.Data = candidate
+                return True
+            except Exception:
+                pass
+    if len(values) == 1:
+        try:
+            prop.Data = values[0]
+            return True
+        except Exception:
+            return False
+    return False
+
+
+def _constraint_offset_property_kind(prop):
+    name = getattr(prop, "Name", "") or str(prop)
+    normalized = _normalize_name(name)
+    if not any(term in normalized for term in ("offset", "baseoffset", "base")):
+        return ""
+    if any(term in normalized for term in ("rotation", "rotate", "rot", "roffset", "offsetr")):
+        return "rotation"
+    if any(term in normalized for term in ("translation", "translate", "position", "pos", "toffset", "offsett")):
+        return "translation"
+    if any(term in normalized for term in ("scaling", "scale", "soffset", "offsets")):
+        return "scale"
+    return "generic"
+
+
+def _constraint_offset_properties(constraint):
+    props = []
+    for prop in getattr(constraint, "PropertyList", []) or []:
+        kind = _constraint_offset_property_kind(prop)
+        if kind:
+            props.append((prop, kind))
+    return props
+
+
+def _wrap_euler_delta(value):
+    while value > 180.0:
+        value -= 360.0
+    while value < -180.0:
+        value += 360.0
+    return value
+
+
+def _constraint_world_offset_values(constraint):
+    refs = _constraint_reference_models(constraint)
+    if len(refs) < 2:
+        return {}
+    source = refs[0]
+    driven = refs[-1]
+    source_t = _model_world_translation(source)
+    driven_t = _model_world_translation(driven)
+    source_r = _model_world_rotation(source)
+    driven_r = _model_world_rotation(driven)
+    values = {}
+    if source_t is not None and driven_t is not None:
+        values["translation"] = _v_sub(driven_t, source_t)
+    if source_r is not None and driven_r is not None:
+        values["rotation"] = tuple(_wrap_euler_delta(driven_r[index] - source_r[index]) for index in range(3))
+    return values
+
+
+def _selected_or_actionable_constraints(constraints=None):
+    selected = _actionable_constraints(constraints)
+    if selected:
+        return selected
+    return _actionable_constraints(_scene_constraints())
+
+
+def set_prop_offset_for_take(constraints=None, time_value=None):
+    constraints = _selected_or_actionable_constraints(constraints)
+    if time_value is None:
+        try:
+            time_value = FBPlayerControl().GetEditCurrentTime()
+        except Exception:
+            time_value = FBSystem().LocalTime
+    take_name = _take_label()
+    if not constraints:
+        message = "Prop Take Offset: no user-facing constraints found on {0}.".format(take_name)
+        _append_status(message)
+        return {"ok": False, "error": message, "constraints": 0, "properties": 0}
+    constraints_changed = 0
+    properties_keyed = 0
+    missing_offset = []
+    for constraint in constraints:
+        offset_props = _constraint_offset_properties(constraint)
+        if not offset_props:
+            missing_offset.append(_short_name_from_long_name(_component_long_name(constraint)))
+            continue
+        offset_values = _constraint_world_offset_values(constraint)
+        changed_here = 0
+        for prop, kind in offset_props:
+            values = None
+            if kind in ("translation", "rotation"):
+                values = offset_values.get(kind)
+            elif kind == "generic":
+                current_values = _property_data_values(prop)
+                values = offset_values.get("translation") if len(current_values) >= 3 else current_values
+            else:
+                values = _property_data_values(prop)
+            if values:
+                _set_property_data(prop, values)
+            keyed = _key_property_at_time(prop, time_value, values=values)
+            properties_keyed += keyed
+            changed_here += keyed
+        for prop_name in ("Active", "Weight"):
+            try:
+                prop = constraint.PropertyList.Find(prop_name, False)
+            except Exception:
+                prop = None
+            if prop is not None:
+                properties_keyed += _key_property_at_time(prop, time_value)
+        if changed_here:
+            constraints_changed += 1
+    if constraints_changed:
+        message = "Prop Take Offset: keyed {0} offset propertie(s) on {1} constraint(s) for {2}.".format(
+            properties_keyed,
+            constraints_changed,
+            take_name,
+        )
+        _append_status(message)
+        if missing_offset:
+            _append_status("No editable offset property found on: {0}".format(", ".join(missing_offset[:4])))
+        return {"ok": True, "constraints": constraints_changed, "properties": properties_keyed, "take": take_name}
+    message = "Prop Take Offset: no editable offset properties found. Try selecting Parent/Child, Position, Rotation, or Multi-Referential constraints."
+    _append_status(message)
+    return {"ok": False, "error": message, "constraints": 0, "properties": properties_keyed}
+
+
+def set_prop_offset_for_all_takes(constraints=None):
+    constraints = _selected_or_actionable_constraints(constraints)
+    takes = _scene_takes()
+    original_take = _current_take()
+    if not takes:
+        return set_prop_offset_for_take(constraints)
+    results = []
+    try:
+        for take in takes:
+            if not _set_current_take(take):
+                continue
+            results.append(set_prop_offset_for_take(constraints))
+    finally:
+        _set_current_take(original_take)
+    ok_count = len([item for item in results if item.get("ok")])
+    _append_status("Prop Take Offset: updated {0}/{1} take(s).".format(ok_count, len(takes)))
+    return {"ok": ok_count > 0, "takes": len(takes), "updated": ok_count}
+
+
+def mute_prop_constraints_for_setup(constraints=None):
+    constraints = _selected_or_actionable_constraints(constraints)
+    muted = 0
+    for constraint in constraints:
+        key = _component_long_name(constraint)
+        if not key:
+            continue
+        if key not in _MUTED_PROP_CONSTRAINT_STATES:
+            _MUTED_PROP_CONSTRAINT_STATES[key] = bool(getattr(constraint, "Active", False))
+        try:
+            constraint.Active = False
+            muted += 1
+        except Exception:
+            pass
+    _evaluate_scene()
+    _append_status("Prop Take Offset: muted {0} constraint(s) for setup.".format(muted))
+    return {"ok": bool(muted), "constraints": muted}
+
+
+def restore_prop_constraints_after_setup(constraints=None):
+    constraints = _selected_or_actionable_constraints(constraints)
+    restored = 0
+    for constraint in constraints:
+        key = _component_long_name(constraint)
+        if key not in _MUTED_PROP_CONSTRAINT_STATES:
+            continue
+        try:
+            constraint.Active = bool(_MUTED_PROP_CONSTRAINT_STATES[key])
+            restored += 1
+        except Exception:
+            pass
+        _MUTED_PROP_CONSTRAINT_STATES.pop(key, None)
+    _evaluate_scene()
+    _append_status("Prop Take Offset: restored {0} setup constraint(s).".format(restored))
+    return {"ok": bool(restored), "constraints": restored}
 
 
 def collect_scene_clean_targets():
@@ -5165,6 +5444,7 @@ def _tool_intro_lines():
         "Scene Cleaner removes user cameras, deletes junk default markers, and renames animated default markers as prop markers.",
         "History Timeline saves full-scene MotionBuilder snapshot branches beside the current scene.",
         "Constraints Manager renames constraints, keys Weight/Active style properties at current time, and opens bake/save options.",
+        "Prop Take Offset Manager stores constraint offsets per take so props can start in different places without immediate bake loops.",
         "Use Save To Skeleton or Save To Control Rig after constraints are keyed so constrained motion becomes normal keys.",
         SCENE_CLEANER_HINT,
         "",
@@ -5287,6 +5567,26 @@ def _on_rename_constraints_easy(control=None, event=None):
 
 def _on_key_constraints(control=None, event=None):
     key_constraint_properties(_scene_constraints())
+    _refresh_dashboard()
+
+
+def _on_prop_offset_this_take(control=None, event=None):
+    set_prop_offset_for_take(_scene_constraints())
+    _refresh_dashboard()
+
+
+def _on_prop_offset_all_takes(control=None, event=None):
+    set_prop_offset_for_all_takes(_scene_constraints())
+    _refresh_dashboard()
+
+
+def _on_mute_prop_constraints(control=None, event=None):
+    mute_prop_constraints_for_setup(_scene_constraints())
+    _refresh_dashboard()
+
+
+def _on_restore_prop_constraints(control=None, event=None):
+    restore_prop_constraints_after_setup(_scene_constraints())
     _refresh_dashboard()
 
 
@@ -5526,6 +5826,27 @@ if QtWidgets:
             button_grid.addWidget(self._action_button("Save To Skeleton", self._save_to_skeleton), 1, 1)
             button_grid.addWidget(self._action_button("Save To Control Rig", self._save_to_control_rig), 1, 2)
             layout.addLayout(button_grid)
+
+            prop_offset_group = QtWidgets.QGroupBox("Prop Take Offset Manager")
+            prop_offset_group.setToolTip("Fix prop constraints per take without forcing students to bake every take immediately.")
+            prop_offset_layout = QtWidgets.QVBoxLayout(prop_offset_group)
+            prop_offset_layout.setSpacing(4)
+            prop_offset_hint = QtWidgets.QLabel(
+                "For props that change position between takes: select the prop constraint, place the prop correctly, then store the offset for this take."
+            )
+            prop_offset_hint.setObjectName("aminateMobuGroupHint")
+            prop_offset_hint.setWordWrap(True)
+            prop_offset_hint.setToolTip("Use this when a prop hand constraint works on one take but breaks on another because the prop starts somewhere else.")
+            prop_offset_layout.addWidget(prop_offset_hint)
+            prop_offset_buttons = QtWidgets.QGridLayout()
+            prop_offset_buttons.setHorizontalSpacing(5)
+            prop_offset_buttons.setVerticalSpacing(4)
+            prop_offset_buttons.addWidget(self._action_button("Set Offset For This Take", self._set_prop_offset_this_take), 0, 0)
+            prop_offset_buttons.addWidget(self._action_button("Set Offset For All Takes", self._set_prop_offset_all_takes), 0, 1)
+            prop_offset_buttons.addWidget(self._action_button("Mute Constraints For Setup", self._mute_prop_constraints_setup), 1, 0)
+            prop_offset_buttons.addWidget(self._action_button("Restore Constraints", self._restore_prop_constraints_setup), 1, 1)
+            prop_offset_layout.addLayout(prop_offset_buttons)
+            layout.addWidget(prop_offset_group)
 
             preview_row = QtWidgets.QHBoxLayout()
             preview_row.setSpacing(6)
@@ -5768,6 +6089,34 @@ if QtWidgets:
             key_constraint_properties(selected)
             _refresh_dashboard()
 
+        def _set_prop_offset_this_take(self):
+            selected = self._selected_constraints_from_table()
+            if not selected:
+                selected = _scene_constraints()
+            set_prop_offset_for_take(selected)
+            self._refresh_constraints_manager()
+
+        def _set_prop_offset_all_takes(self):
+            selected = self._selected_constraints_from_table()
+            if not selected:
+                selected = _scene_constraints()
+            set_prop_offset_for_all_takes(selected)
+            self._refresh_constraints_manager()
+
+        def _mute_prop_constraints_setup(self):
+            selected = self._selected_constraints_from_table()
+            if not selected:
+                selected = _scene_constraints()
+            mute_prop_constraints_for_setup(selected)
+            self._refresh_constraints_manager()
+
+        def _restore_prop_constraints_setup(self):
+            selected = self._selected_constraints_from_table()
+            if not selected:
+                selected = _scene_constraints()
+            restore_prop_constraints_after_setup(selected)
+            self._refresh_constraints_manager()
+
         def _open_bake_options(self):
             open_constraint_bake_options()
             _refresh_dashboard()
@@ -5917,6 +6266,13 @@ def _populate_tool_layout(tool):
     row.Add(_button("History Timeline", _on_history_timeline, color=(0.46, 0.34, 0.12)), 180)
     row.Add(_button("Rename To Easy Names", _on_rename_constraints_easy, color=(0.24, 0.34, 0.40)), 180)
     row.Add(_button("Key Selected Props", _on_key_constraints, color=(0.24, 0.34, 0.40)), 160)
+    container.Add(row, 28)
+
+    row = pyfbsdk_additions.FBHBoxLayout(FBAttachType.kFBAttachLeft)
+    row.Add(_button("Set Offset For This Take", _on_prop_offset_this_take, color=(0.24, 0.34, 0.40)), 190)
+    row.Add(_button("Set Offset For All Takes", _on_prop_offset_all_takes, color=(0.24, 0.34, 0.40)), 190)
+    row.Add(_button("Mute Constraints For Setup", _on_mute_prop_constraints, color=(0.20, 0.28, 0.36)), 210)
+    row.Add(_button("Restore Constraints", _on_restore_prop_constraints, color=(0.20, 0.36, 0.28)), 170)
     container.Add(row, 28)
 
     note = FBEdit()
