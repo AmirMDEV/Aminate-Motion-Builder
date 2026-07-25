@@ -7,11 +7,11 @@ import zipfile
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-ZIP_PATH = REPO_ROOT / "student_package" / "Aminate_Motion_Builder_v0.1_BETA.zip"
+ZIP_PATH = REPO_ROOT / "student_package" / "Aminate_Motion_Builder_v0.1.1_BETA.zip"
 PACKAGE_ROOT = "Aminate_Motion_Builder_Install_Files"
 PAYLOAD_ROOT = PACKAGE_ROOT + "/install_files"
-EXPECTED_VERSION = "Version 0.1 BETA"
-EXPECTED_TAG = "v0.1-beta"
+EXPECTED_VERSION = "Version 0.1.1 BETA"
+EXPECTED_TAG = "v0.1.1-beta"
 RUNTIME_FILES = [
     "aminate_mobu.py",
     "aminate_mobu_history.py",

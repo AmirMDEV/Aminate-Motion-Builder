@@ -72,7 +72,7 @@ except Exception:  # pragma: no cover - MotionBuilder fallback
 
 
 TOOL_NAME = "Aminate Mobu"
-TOOL_VERSION = "Version 0.1 BETA"
+TOOL_VERSION = "Version 0.1.1 BETA"
 TOOL_DOC_TAG = "aminate_mobu_tool"
 QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
