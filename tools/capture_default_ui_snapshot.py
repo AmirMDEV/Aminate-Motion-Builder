@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib
 import os
 import sys
 
@@ -13,7 +12,6 @@ def main():
         sys.path.insert(0, REPO_ROOT)
     import aminate_mobu  # pylint: disable=import-error
 
-    aminate_mobu = importlib.reload(aminate_mobu)
     panel = aminate_mobu.launch_aminate_mobu()
     if hasattr(panel, "panel"):
         panel = panel.panel

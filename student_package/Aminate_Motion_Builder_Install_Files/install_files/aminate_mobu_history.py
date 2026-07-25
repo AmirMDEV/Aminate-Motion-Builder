@@ -24,10 +24,16 @@ from pyfbsdk import (
 
 try:
     from PySide6 import QtCore, QtGui, QtWidgets
+    from shiboken6 import isValid as shiboken_is_valid
 except Exception:  # pragma: no cover - MotionBuilder fallback
-    QtCore = None
-    QtGui = None
-    QtWidgets = None
+    try:  # pragma: no cover - older MotionBuilder fallback
+        from PySide2 import QtCore, QtGui, QtWidgets
+        from shiboken2 import isValid as shiboken_is_valid
+    except Exception:  # pragma: no cover - no Qt bridge available
+        QtCore = None
+        QtGui = None
+        QtWidgets = None
+        shiboken_is_valid = None
 
 try:
     import pyfbsdk_additions
@@ -87,6 +93,17 @@ GLOBAL_CONTROLLER = None
 GLOBAL_WINDOW = None
 HISTORY_UI_WIDGETS = []
 FB_TOOL_NAMES_TO_CLOSE_ON_RESTORE = ("Aminate Mobu",)
+
+
+def _qt_object_is_valid(value):
+    if value is None:
+        return False
+    if shiboken_is_valid is None:
+        return True
+    try:
+        return bool(shiboken_is_valid(value))
+    except Exception:
+        return False
 
 
 def _now_iso():
@@ -1916,8 +1933,9 @@ if QtWidgets:
                 self.panel.controller.shutdown()
             except Exception:
                 pass
-            GLOBAL_CONTROLLER = None
-            GLOBAL_WINDOW = None
+            if self is GLOBAL_WINDOW:
+                GLOBAL_CONTROLLER = None
+                GLOBAL_WINDOW = None
             super(MotionBuilderHistoryTimelineWindow, self).closeEvent(event)
 
 
@@ -1926,7 +1944,7 @@ def launch_motionbuilder_history_timeline():
     global GLOBAL_WINDOW
     if QtWidgets is None:
         raise RuntimeError("Aminate Mobu History Timeline needs PySide.")
-    if GLOBAL_WINDOW is not None:
+    if _qt_object_is_valid(GLOBAL_WINDOW):
         try:
             GLOBAL_WINDOW.show()
             GLOBAL_WINDOW.raise_()
@@ -1935,6 +1953,10 @@ def launch_motionbuilder_history_timeline():
             return GLOBAL_WINDOW
         except Exception:
             GLOBAL_WINDOW = None
+            GLOBAL_CONTROLLER = None
+    else:
+        GLOBAL_WINDOW = None
+        GLOBAL_CONTROLLER = None
     GLOBAL_CONTROLLER = MotionBuilderHistoryTimelineController()
     GLOBAL_WINDOW = MotionBuilderHistoryTimelineWindow(GLOBAL_CONTROLLER)
     GLOBAL_WINDOW.show()
