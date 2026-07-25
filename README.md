@@ -40,9 +40,35 @@ Manual fallback:
 
 ## Screenshots
 
+### Scene Cleanup
+
+![Aminate Scene Cleanup workflow](docs/screenshots/aminate-scene-cleanup.png)
+
+### HIK Mapping
+
+![Aminate HIK Mapping workflow](docs/screenshots/aminate-hik-mapping.png)
+
+### Setup Warnings
+
+![Aminate Setup Warnings workflow](docs/screenshots/aminate-setup-warnings.png)
+
+### Constraints Manager
+
+![Aminate Constraints Manager workflow](docs/screenshots/aminate-constraints-manager.png)
+
+### History Timeline
+
+![Aminate History Timeline](docs/screenshots/aminate-history-timeline.png)
+
+### Modern UI Overview
+
 ![Aminate modern UI](docs/screenshots/aminate-modern-ui.png)
 
+### Native MotionBuilder Reference
+
 ![MotionBuilder clean host reference](docs/screenshots/motionbuilder-clean-host-reference.png)
+
+### Constraint Explanation Cards
 
 ![Constraint preview cards](docs/screenshots/constraint-preview-cards.png)
 
