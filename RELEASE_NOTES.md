@@ -1,4 +1,4 @@
-# Aminate Motion Builder 0.1 Beta
+# Aminate Motion Builder 0.1.1 Beta
 
 This is the first public beta of Aminate Motion Builder for Autodesk MotionBuilder.
 
@@ -14,7 +14,7 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 
 ## Quick Install
 
-1. Download `Aminate_Motion_Builder_v0.1_BETA.zip` from this release.
+1. Download `Aminate_Motion_Builder_v0.1.1_BETA.zip` from this release.
 2. Unzip it.
 3. Open the `Aminate_Motion_Builder_Install_Files` folder.
 4. Drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport.
@@ -33,15 +33,15 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 
 ## Screenshots
 
-![Scene Cleanup](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_scene_cleanup_workflow.png)
+![Scene Cleanup](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1.1-beta/screenshot_scene_cleanup_workflow.png)
 
-![HIK Mapping](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_hik_mapping_workflow.png)
+![HIK Mapping](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1.1-beta/screenshot_hik_mapping_workflow.png)
 
-![Setup Warnings](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_setup_warnings_workflow.png)
+![Setup Warnings](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1.1-beta/screenshot_setup_warnings_workflow.png)
 
-![Constraints Manager](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_constraints_manager_workflow.png)
+![Constraints Manager](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1.1-beta/screenshot_constraints_manager_workflow.png)
 
-![History Timeline](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_history_timeline.png)
+![History Timeline](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1.1-beta/screenshot_history_timeline.png)
 
 ## What Aminate Can Do
 
@@ -60,7 +60,7 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 
 ## How To Install
 
-1. Download `Aminate_Motion_Builder_v0.1_BETA.zip`.
+1. Download `Aminate_Motion_Builder_v0.1.1_BETA.zip`.
 2. Unzip it somewhere convenient.
 3. Open the `Aminate_Motion_Builder_Install_Files` folder.
 4. Drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport.

@@ -7,7 +7,7 @@ import traceback
 
 
 PACKAGE_NAME = "Aminate Motion Builder"
-INSTALL_VERSION = "v0.1-beta"
+INSTALL_VERSION = "v0.1.1-beta"
 PAYLOAD_FOLDER = "install_files"
 
 
@@ -82,7 +82,7 @@ def install_and_launch():
     )
     _message(
         "Aminate installed",
-        "Aminate Motion Builder 0.1 Beta is installed.\n\nStartup hooks:\n{0}\n\n{1}".format(
+        "Aminate Motion Builder 0.1.1 Beta is installed.\n\nStartup hooks:\n{0}\n\n{1}".format(
             startup_text,
             (
                 "Aminate stayed on the already loaded code so MotionBuilder remains stable. Restart MotionBuilder once to activate the newly installed files."

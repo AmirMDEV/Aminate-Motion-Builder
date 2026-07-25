@@ -2,11 +2,11 @@
 
 Aminate Motion Builder is a MotionBuilder helper for cleaning mocap scenes, preparing HumanIK character definitions, building frame-zero T-poses, managing constraints, and making common MotionBuilder workflows easier to understand.
 
-This is the public beta repository for **Aminate Motion Builder 0.1 Beta**.
+This is the public beta repository for **Aminate Motion Builder 0.1.1 Beta**.
 
 ## Install
 
-1. Download the latest release zip: `Aminate_Motion_Builder_v0.1_BETA.zip`.
+1. Download the latest release zip: `Aminate_Motion_Builder_v0.1.1_BETA.zip`.
 2. Unzip it.
 3. Open the `Aminate_Motion_Builder_Install_Files` folder.
 4. Drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport.
