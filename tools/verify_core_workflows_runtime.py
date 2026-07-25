@@ -62,27 +62,6 @@ def _click_button(aminate_mobu, panel, tab_index, caption):
     return button
 
 
-def _load_exact_plugin():
-    if REPO_ROOT not in sys.path:
-        sys.path.insert(0, REPO_ROOT)
-    old_module = sys.modules.get("aminate_mobu")
-    if old_module is not None:
-        try:
-            old_module.reset_runtime_state(clear_tool=True)
-            old_module.QtWidgets.QApplication.processEvents()
-        except Exception:
-            pass
-    sys.modules.pop("aminate_mobu", None)
-    import aminate_mobu
-
-    if os.path.normcase(os.path.abspath(aminate_mobu.__file__)) != os.path.normcase(
-        os.path.join(REPO_ROOT, "aminate_mobu.py")
-    ):
-        raise RuntimeError("Wrong Aminate source loaded: {0}".format(aminate_mobu.__file__))
-    aminate_mobu.launch_aminate_mobu()
-    return aminate_mobu
-
-
 def run():
     app = FBApplication()
     current_scene = os.path.normcase(os.path.abspath(app.FBXFileName or ""))
@@ -95,11 +74,7 @@ def run():
 
     import aminate_mobu
 
-    expected_source = os.path.join(REPO_ROOT, "aminate_mobu.py")
-    if os.path.normcase(os.path.abspath(aminate_mobu.__file__)) != os.path.normcase(expected_source):
-        aminate_mobu = _load_exact_plugin()
-    else:
-        aminate_mobu.launch_aminate_mobu()
+    aminate_mobu.launch_aminate_mobu()
     qt_app = aminate_mobu.QtWidgets.QApplication.instance()
     panel = aminate_mobu._QT_TOOL
     if panel is None:
@@ -265,7 +240,6 @@ def run():
             "scene_rows": len(constraint_rows),
         }
 
-        sys.modules.pop("aminate_mobu_history", None)
         _click_button(aminate_mobu, panel, 4, "History Timeline")
         history_error = ""
         history_module = sys.modules.get("aminate_mobu_history")

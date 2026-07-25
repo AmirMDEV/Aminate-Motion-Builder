@@ -2548,14 +2548,6 @@ def _style_donate_button(button, theme_key=None):
     )
 
 
-def _on_qt_panel_destroyed(panel_id):
-    global _QT_TOOL
-    global _QT_DOCK
-    if _QT_TOOL is not None and id(_QT_TOOL) == panel_id:
-        _QT_TOOL = None
-        _QT_DOCK = None
-
-
 def _launcher_icon_path():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     icon_path = os.path.join(base_dir, LAUNCHER_ICON_RELATIVE_PATH)
@@ -5864,12 +5856,6 @@ if QtWidgets:
             self.resize(520, 640)
             self._build_ui()
             self._apply_theme(self.theme_key)
-            try:
-                self.destroyed.connect(
-                    lambda *_args, panel_id=id(self): _on_qt_panel_destroyed(panel_id)
-                )
-            except Exception:
-                pass
 
         def _build_ui(self):
             main_layout = QtWidgets.QVBoxLayout(self)

@@ -111,13 +111,15 @@ def run():
             raise RuntimeError("History close/reopen cycle failed.")
 
     aminate_mobu._QT_TOOL._apply_theme(aminate_mobu.THEME_MOTIONBUILDER)
-    _process_events(app)
+    _process_events(app, 8)
     docks = aminate_mobu._existing_aminate_mobu_docks()
     toolbars = aminate_mobu._existing_aminate_launcher_toolbars()
     payload = {
         "ok": bool(
             len(docks) == 1
             and len(toolbars) == 1
+            and aminate_mobu._qt_object_is_valid(aminate_mobu._QT_DOCK)
+            and aminate_mobu._qt_object_is_valid(aminate_mobu._QT_TOOL)
             and _style_pointer(app) == style_pointer
             and aminate_mobu.get_active_theme() == aminate_mobu.THEME_MOTIONBUILDER
         ),
