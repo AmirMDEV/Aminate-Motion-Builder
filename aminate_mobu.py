@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 17
+QT_PANEL_BUILD_VERSION = 18
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -2402,7 +2402,7 @@ def _theme_label(theme_key):
 
 
 def _theme_toggle_caption(theme_key):
-    return "Switch to {0} UI".format(_theme_label(_other_theme(theme_key)))
+    return "{0} UI".format(_theme_label(_other_theme(theme_key)))
 
 
 def _theme_tooltip(theme_key):
@@ -5835,8 +5835,8 @@ if QtWidgets:
             main_layout = QtWidgets.QVBoxLayout(self)
             main_layout.setContentsMargins(6, 6, 6, 6)
             main_layout.setSpacing(5)
-            header_layout = QtWidgets.QHBoxLayout()
-            header_layout.setSpacing(5)
+            header_layout = QtWidgets.QVBoxLayout()
+            header_layout.setSpacing(4)
             header_text_layout = QtWidgets.QVBoxLayout()
             header_text_layout.setSpacing(0)
             self.header_title = QtWidgets.QLabel(TOOL_NAME)
@@ -5847,19 +5847,24 @@ if QtWidgets:
             self.header_subtitle.setObjectName("aminateMobuHeaderSubtitle")
             self.header_subtitle.setToolTip("Quick summary of the main Aminate Mobu jobs.")
             header_text_layout.addWidget(self.header_subtitle)
-            header_layout.addLayout(header_text_layout, 1)
+            header_layout.addLayout(header_text_layout)
+            header_controls_layout = QtWidgets.QGridLayout()
+            header_controls_layout.setHorizontalSpacing(5)
+            header_controls_layout.setVerticalSpacing(4)
             self.theme_badge = QtWidgets.QLabel()
             self.theme_badge.setObjectName("aminateMobuThemeBadge")
             self.theme_badge.setToolTip("Shows which Aminate theme is active.")
-            header_layout.addWidget(self.theme_badge)
+            header_controls_layout.addWidget(self.theme_badge, 0, 0)
             self.theme_button = QtWidgets.QPushButton()
             self.theme_button.setObjectName("aminateMobuThemeToggle")
             self.theme_button.clicked.connect(self._toggle_theme)
-            header_layout.addWidget(self.theme_button)
+            header_controls_layout.addWidget(self.theme_button, 0, 1)
+            header_controls_layout.setColumnStretch(1, 1)
             self.collapse_button = QtWidgets.QPushButton("Hide Panel")
             self.collapse_button.setToolTip("Collapse Aminate into a thin side panel.")
             self.collapse_button.clicked.connect(self._toggle_collapsed)
-            header_layout.addWidget(self.collapse_button)
+            header_controls_layout.addWidget(self.collapse_button, 1, 0, 1, 2)
+            header_layout.addLayout(header_controls_layout)
             main_layout.addLayout(header_layout)
             self.body_container = QtWidgets.QWidget()
             self.body_container.setObjectName("aminateMobuBodyContainer")

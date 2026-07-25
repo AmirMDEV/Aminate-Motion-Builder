@@ -5,6 +5,7 @@
 - Fixed `Switch to MotionBuilder UI` so it restores the native host stylesheet and palette captured before Modern mode instead of applying a second Aminate-owned Fusion-style theme.
 - Kept MotionBuilder's native Qt style object in place while Modern mode is active, allowing a complete return to normal host chrome without moving the window or replacing the dock layout.
 - Replaced the stale snapshot-only theme verifier with live host checks for stylesheet, visible palette roles, theme ownership, window placement, and the real theme-button journey.
+- Reflowed the Aminate header into compact title and control rows, and shortened the target-theme button labels so Modern/MotionBuilder switching and Hide Panel remain readable in a small dock.
 
 ## 2026-04-26
 
