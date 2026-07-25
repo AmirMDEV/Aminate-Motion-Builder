@@ -78,7 +78,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 26
+QT_PANEL_BUILD_VERSION = 27
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -1542,6 +1542,17 @@ def _candidate_slot_score(slot_name, normalized_name, model):
     return score
 
 
+def _qt_object_is_valid(value):
+    if value is None:
+        return False
+    if shiboken_is_valid is None:
+        return True
+    try:
+        return bool(shiboken_is_valid(value))
+    except Exception:
+        return False
+
+
 def _qt_main_window():
     if QtWidgets is None:
         return None
@@ -1549,14 +1560,19 @@ def _qt_main_window():
     if app is None:
         return None
     active = app.activeWindow()
-    if active is not None:
+    if _qt_object_is_valid(active):
         return active
     for widget in app.topLevelWidgets():
+        if not _qt_object_is_valid(widget):
+            continue
         title = widget.windowTitle() or ""
         if "MotionBuilder" in title:
             return widget
     widgets = app.topLevelWidgets()
-    return widgets[0] if widgets else None
+    for widget in widgets:
+        if _qt_object_is_valid(widget):
+            return widget
+    return None
 
 
 def _qt_host_main_window():
@@ -1566,13 +1582,15 @@ def _qt_host_main_window():
     if app is None:
         return None
     for widget in app.topLevelWidgets():
+        if not _qt_object_is_valid(widget):
+            continue
         try:
             if hasattr(widget, "addDockWidget") and "MotionBuilder" in (widget.windowTitle() or ""):
                 return widget
         except Exception:
             continue
     active = app.activeWindow()
-    if active is not None and hasattr(active, "addDockWidget"):
+    if _qt_object_is_valid(active) and hasattr(active, "addDockWidget"):
         return active
     return None
 
@@ -1585,6 +1603,8 @@ def _existing_aminate_mobu_docks():
         return []
     docks = []
     for widget in main.findChildren(QtWidgets.QDockWidget):
+        if not _qt_object_is_valid(widget):
+            continue
         try:
             if widget.objectName() == QT_DOCK_OBJECT_NAME:
                 docks.append(widget)
@@ -1601,10 +1621,6 @@ def _close_duplicate_aminate_mobu_docks(keep_dock=None):
             widget.close()
         except Exception:
             pass
-        try:
-            widget.deleteLater()
-        except Exception:
-            pass
 
 
 def _existing_aminate_launcher_toolbars():
@@ -1615,6 +1631,8 @@ def _existing_aminate_launcher_toolbars():
         return []
     toolbars = []
     for widget in main.findChildren(QtWidgets.QToolBar):
+        if not _qt_object_is_valid(widget):
+            continue
         try:
             if widget.objectName() == QT_LAUNCHER_TOOLBAR_OBJECT_NAME:
                 toolbars.append(widget)
@@ -1703,33 +1721,13 @@ def _reset_to_best_effort_native(app):
         app.setStyleSheet("")
     except Exception:
         pass
-    style_applied = False
-    if QtWidgets is not None and hasattr(QtWidgets, "QStyleFactory"):
-        try:
-            keys = [str(key) for key in QtWidgets.QStyleFactory.keys()]
-        except Exception:
-            keys = []
-        preferred = None
-        for wanted in ("WindowsVista", "Windows11", "Windows", "Fusion"):
-            for key in keys:
-                if key.lower() == wanted.lower():
-                    preferred = key
-                    break
-            if preferred:
-                break
-        if preferred:
-            try:
-                app.setStyle(preferred)
-                style_applied = True
-            except Exception:
-                style_applied = False
     try:
         style = app.style()
         if style is not None:
             app.setPalette(style.standardPalette())
     except Exception:
         pass
-    return style_applied
+    return True
 
 
 def prime_app_theme_baseline(force_reset=False):
@@ -2394,6 +2392,8 @@ def _refresh_qt_theme():
     except Exception:
         widgets = []
     for widget in widgets:
+        if not _qt_object_is_valid(widget):
+            continue
         try:
             style = widget.style()
             if style is not None:
@@ -2461,11 +2461,6 @@ def _apply_motionbuilder_host_theme(app=None):
     if _APP_THEME_BASELINE is None or _APP_THEME_BASELINE_PALETTE is None:
         if not prime_app_theme_baseline():
             return False
-    if _APP_THEME_BASELINE_STYLE:
-        try:
-            app.setStyle(_APP_THEME_BASELINE_STYLE)
-        except Exception:
-            pass
     try:
         app.setPalette(_copy_palette(_APP_THEME_BASELINE_PALETTE))
     except Exception:
@@ -2553,12 +2548,12 @@ def _style_donate_button(button, theme_key=None):
     )
 
 
-def _on_qt_panel_destroyed(*_args):
+def _on_qt_panel_destroyed(panel_id):
     global _QT_TOOL
     global _QT_DOCK
-    _QT_TOOL = None
-    _QT_DOCK = None
-    _restore_app_theme()
+    if _QT_TOOL is not None and id(_QT_TOOL) == panel_id:
+        _QT_TOOL = None
+        _QT_DOCK = None
 
 
 def _launcher_icon_path():
@@ -2575,6 +2570,9 @@ def _ensure_aminate_launcher_toolbar():
     main = _qt_host_main_window()
     if main is None or not hasattr(main, "addToolBar"):
         return None
+    if not _qt_object_is_valid(_QT_LAUNCHER_TOOLBAR):
+        _QT_LAUNCHER_TOOLBAR = None
+        _QT_LAUNCHER_ACTION = None
     if _QT_LAUNCHER_TOOLBAR is None:
         existing = _existing_aminate_launcher_toolbars()
         if existing:
@@ -2674,14 +2672,12 @@ def install_motionbuilder_startup(startup_dir=None, module_root=None):
     if not target_dirs:
         target_dirs = [os.path.join(MB_DOCUMENTS_ROOT, "2026", "config", "PythonStartup")]
     bootstrap = """from __future__ import absolute_import, division, print_function
-import importlib
 import sys
 MODULE_ROOT = r\"{module_root}\"
 if MODULE_ROOT not in sys.path:
     sys.path.insert(0, MODULE_ROOT)
 def _boot():
     import aminate_mobu
-    importlib.reload(aminate_mobu)
     aminate_mobu.launch_aminate_mobu()
 try:
     from PySide6 import QtCore
@@ -2856,39 +2852,37 @@ def reset_runtime_state(clear_tool=False):
     remove_runtime_watchers()
     if clear_tool:
         _restore_app_theme()
-        _close_duplicate_aminate_mobu_docks()
-        _close_duplicate_aminate_launcher_toolbars(keep_toolbar=_QT_LAUNCHER_TOOLBAR)
-    if clear_tool and _QT_DOCK is not None:
-        try:
-            _QT_DOCK.close()
-        except Exception:
-            pass
-        try:
-            _QT_DOCK.deleteLater()
-        except Exception:
-            pass
+        dock = _QT_DOCK if _qt_object_is_valid(_QT_DOCK) else None
+        toolbar = _QT_LAUNCHER_TOOLBAR if _qt_object_is_valid(_QT_LAUNCHER_TOOLBAR) else None
         _QT_DOCK = None
-    if clear_tool and _QT_TOOL is not None:
-        try:
-            _QT_TOOL.close()
-        except Exception:
-            pass
-        try:
-            _QT_TOOL.deleteLater()
-        except Exception:
-            pass
         _QT_TOOL = None
-    if clear_tool and _QT_LAUNCHER_TOOLBAR is not None:
-        try:
-            _QT_LAUNCHER_TOOLBAR.hide()
-        except Exception:
-            pass
-        try:
-            _QT_LAUNCHER_TOOLBAR.deleteLater()
-        except Exception:
-            pass
         _QT_LAUNCHER_TOOLBAR = None
         _QT_LAUNCHER_ACTION = None
+    else:
+        dock = None
+        toolbar = None
+    if dock is not None:
+        try:
+            dock.hide()
+        except Exception:
+            pass
+        try:
+            dock.close()
+        except Exception:
+            pass
+    if clear_tool:
+        _close_duplicate_aminate_mobu_docks()
+    if toolbar is not None:
+        try:
+            toolbar.hide()
+        except Exception:
+            pass
+        try:
+            toolbar.deleteLater()
+        except Exception:
+            pass
+    if clear_tool:
+        _close_duplicate_aminate_launcher_toolbars()
     if clear_tool and TOOL_NAME in pyfbsdk_additions.FBToolList:
         pyfbsdk_additions.FBDestroyToolByName(TOOL_NAME)
 
@@ -5623,7 +5617,6 @@ def _on_connection_data_notify(control, event):
 
 
 def _on_file_exit(control=None, event=None):
-    _restore_app_theme()
     remove_runtime_watchers()
 
 
@@ -5872,7 +5865,9 @@ if QtWidgets:
             self._build_ui()
             self._apply_theme(self.theme_key)
             try:
-                self.destroyed.connect(_on_qt_panel_destroyed)
+                self.destroyed.connect(
+                    lambda *_args, panel_id=id(self): _on_qt_panel_destroyed(panel_id)
+                )
             except Exception:
                 pass
 
@@ -6640,10 +6635,13 @@ if QtWidgets:
         def closeEvent(self, event):
             global _QT_DOCK
             global _QT_TOOL
-            _QT_DOCK = None
-            _QT_TOOL = None
-            _restore_app_theme()
+            is_current_dock = self is _QT_DOCK
+            if is_current_dock:
+                _QT_DOCK = None
+                _QT_TOOL = None
             super(AminateMobuDockWidget, self).closeEvent(event)
+            if is_current_dock:
+                QtCore.QTimer.singleShot(0, _restore_app_theme)
 
 
 def _populate_tool_layout(tool):
@@ -6718,6 +6716,11 @@ def launch_aminate_mobu():
     _ensure_aminate_launcher_toolbar()
     install_easy_motionbuilder_tooltips()
     if QtWidgets is not None and hasattr(_qt_host_main_window(), "addDockWidget"):
+        if not _qt_object_is_valid(_QT_DOCK):
+            _QT_DOCK = None
+            _QT_TOOL = None
+        elif not _qt_object_is_valid(_QT_TOOL):
+            _QT_TOOL = getattr(_QT_DOCK, "panel", None)
         if _QT_DOCK is None:
             existing_docks = _existing_aminate_mobu_docks()
             if existing_docks:
@@ -6731,16 +6734,23 @@ def launch_aminate_mobu():
                     or not hasattr(_QT_TOOL, "skeleton_scope_label")
                     or getattr(_QT_TOOL, "_build_version", 0) != QT_PANEL_BUILD_VERSION
                 ):
-                    try:
-                        _QT_DOCK.close()
-                    except Exception:
-                        pass
-                    try:
-                        _QT_DOCK.deleteLater()
-                    except Exception:
-                        pass
+                    stale_dock = _QT_DOCK
                     _QT_DOCK = None
                     _QT_TOOL = None
+                    try:
+                        stale_dock.hide()
+                    except Exception:
+                        pass
+                    try:
+                        stale_dock.close()
+                    except Exception:
+                        pass
+                    app = _qt_application()
+                    if app is not None:
+                        try:
+                            app.processEvents()
+                        except Exception:
+                            pass
         if _QT_DOCK is None:
             main = _qt_host_main_window()
             _QT_DOCK = AminateMobuDockWidget(parent=main)

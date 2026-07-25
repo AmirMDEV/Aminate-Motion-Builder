@@ -1,4 +1,3 @@
-import importlib
 import json
 import os
 import sys
@@ -59,7 +58,6 @@ def find_tab_tooltip(main, label):
     return None
 
 
-aminate_mobu = importlib.reload(aminate_mobu)
 toolbar = aminate_mobu.ensure_motionbuilder_ui_entry()
 dock = aminate_mobu.launch_aminate_mobu()
 touched = aminate_mobu.install_easy_motionbuilder_tooltips()

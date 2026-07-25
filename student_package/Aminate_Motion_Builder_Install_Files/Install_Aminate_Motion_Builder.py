@@ -52,20 +52,23 @@ def _copy_payload(source_dir, target_dir):
     parent_dir = os.path.dirname(target_dir)
     if not os.path.isdir(parent_dir):
         os.makedirs(parent_dir)
-    if os.path.isdir(target_dir):
-        shutil.rmtree(target_dir)
-    shutil.copytree(source_dir, target_dir)
+    shutil.copytree(source_dir, target_dir, dirs_exist_ok=True)
 
 
 def install_and_launch():
     package_dir = _script_dir()
     source_dir = _payload_dir(package_dir)
     target_dir = _install_dir()
+    was_loaded = "aminate_mobu" in sys.modules
     _copy_payload(source_dir, target_dir)
 
     if target_dir not in sys.path:
         sys.path.insert(0, target_dir)
 
+    # These tiny helper modules are safe to replace. The live aminate_mobu
+    # module is deliberately kept intact until MotionBuilder restarts.
+    sys.modules.pop("install_motionbuilder_startup", None)
+    sys.modules.pop("launch_aminate_mobu", None)
     import install_motionbuilder_startup
     import launch_aminate_mobu
 
@@ -75,8 +78,13 @@ def install_and_launch():
     startup_text = "\n".join(written) if written else "No MotionBuilder startup folders were detected."
     _message(
         "Aminate installed",
-        "Aminate Motion Builder 0.1 Beta is installed.\n\nStartup hooks:\n{0}\n\nRestart MotionBuilder any time to load Aminate automatically.".format(
-            startup_text
+        "Aminate Motion Builder 0.1 Beta is installed.\n\nStartup hooks:\n{0}\n\n{1}".format(
+            startup_text,
+            (
+                "Aminate stayed on the already loaded code so MotionBuilder remains stable. Restart MotionBuilder once to activate the newly installed files."
+                if was_loaded
+                else "Aminate is open now and will load automatically on future MotionBuilder launches."
+            ),
         ),
     )
     return target_dir

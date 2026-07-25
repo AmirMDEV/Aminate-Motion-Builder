@@ -2,6 +2,11 @@
 
 ## 2026-07-25
 
+- Removed live-module reloads from startup, launcher, installer, and verification paths so updating Aminate cannot tear down Qt objects underneath MotionBuilder.
+- Removed application-wide `QApplication.setStyle()` calls and made dock/theme teardown deferred and idempotent after reproduced `Qt6Widgets.dll` access violations.
+- Added deleted-wrapper guards for Aminate, its launcher toolbar, MotionBuilder host scans, and the History window.
+- Changed drag-and-drop updates to merge payload files in place, refresh only safe helper modules, and require one MotionBuilder restart before newly copied code replaces an already loaded build.
+- Added focused source, release-ZIP, repeated theme switching, dock close/reopen, and History close/reopen crash gates.
 - Replaced the fake workflow heading with real Scene Cleanup, HIK Mapping, Setup Warnings, Constraints, and History tabs that remain clickable in a 220-pixel dock.
 - Wired the missing `Use Selected Skeleton` action and moved each workflow's controls into its own readable, scrollable page.
 - Added a live Setup Warnings page with immediate setup checks, Body Part/Full Body keying controls, and visible warning history.

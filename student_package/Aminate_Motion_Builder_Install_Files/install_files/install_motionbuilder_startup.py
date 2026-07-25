@@ -27,14 +27,12 @@ def install_motionbuilder_startup():
     if not target_dirs:
         target_dirs = [MB_DOCUMENTS_ROOT / "2026" / "config" / "PythonStartup"]
     bootstrap = """from __future__ import absolute_import, division, print_function
-import importlib
 import sys
 MODULE_ROOT = r\"{module_root}\"
 if MODULE_ROOT not in sys.path:
     sys.path.insert(0, MODULE_ROOT)
 def _boot():
     import aminate_mobu
-    importlib.reload(aminate_mobu)
     aminate_mobu.launch_aminate_mobu()
 try:
     from PySide6 import QtCore
