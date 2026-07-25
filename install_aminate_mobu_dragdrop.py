@@ -75,7 +75,11 @@ def install_and_launch():
     written = install_motionbuilder_startup.install_motionbuilder_startup()
     launch_aminate_mobu.launch()
 
-    startup_text = "\n".join(written) if written else "No MotionBuilder startup folders were detected."
+    startup_text = (
+        "\n".join(str(path) for path in written)
+        if written
+        else "No MotionBuilder startup folders were detected."
+    )
     _message(
         "Aminate installed",
         "Aminate Motion Builder 0.1 Beta is installed.\n\nStartup hooks:\n{0}\n\n{1}".format(
