@@ -2,14 +2,24 @@
 
 This is the first public beta of Aminate Motion Builder for Autodesk MotionBuilder.
 
+## July 2026 Update
+
+- Added five real, clickable workflow tabs for Scene Cleanup, HIK Mapping, Setup Warnings, Constraints, and History.
+- Wired `Use Selected Skeleton`, Auto Map, setup checks, constraint tools, and History into their visible workflow pages.
+- Fixed Modern-to-MotionBuilder switching so the cached native stylesheet, palette, main-window geometry, and dock geometry are restored.
+- Removed live plugin reloads and application-wide Qt style replacement after reproducing MotionBuilder access violations during dock teardown.
+- Made repeated launches, dock close/reopen, History close/reopen, normal shutdown, and installed-package startup stable.
+- Changed updates to merge files in place and keep the already loaded session running; restart MotionBuilder once to activate newly copied code.
+- Fixed the drag-and-drop installer success message and validated the actual release ZIP, not only the source tree.
+
 ## Quick Install
 
 1. Download `Aminate_Motion_Builder_v0.1_BETA.zip` from this release.
 2. Unzip it.
 3. Open the `Aminate_Motion_Builder_Install_Files` folder.
 4. Drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport.
-5. Aminate opens immediately and installs its startup hook for future MotionBuilder launches.
-6. Restart MotionBuilder if you want to confirm Aminate loads automatically.
+5. Aminate opens immediately on a first install and installs its startup hook for future MotionBuilder launches.
+6. If you are updating an already loaded copy, restart MotionBuilder once to activate the new files.
 
 ## Premiere Video
 
@@ -20,6 +30,18 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 - `40_Seconds_to_Mocap.mp4` is the premiere video.
 - `Mobu_Automap_and_Tpose.mp4` shows Auto Map Skeleton and T-Pose Frame 0.
 - `Mobu_Scene_Cleaner.mp4` shows scene cleanup.
+
+## Screenshots
+
+![Scene Cleanup](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_scene_cleanup_workflow.png)
+
+![HIK Mapping](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_hik_mapping_workflow.png)
+
+![Setup Warnings](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_setup_warnings_workflow.png)
+
+![Constraints Manager](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_constraints_manager_workflow.png)
+
+![History Timeline](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/screenshot_history_timeline.png)
 
 ## What Aminate Can Do
 
@@ -43,7 +65,7 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 3. Open the `Aminate_Motion_Builder_Install_Files` folder.
 4. Drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport.
 5. Accept the install message.
-6. Restart MotionBuilder when you want to confirm Aminate loads automatically.
+6. Restart MotionBuilder once after an update, or whenever you want to confirm automatic startup.
 
 ## How To Use
 
