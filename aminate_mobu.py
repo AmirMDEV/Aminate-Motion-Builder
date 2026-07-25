@@ -2638,7 +2638,7 @@ def _ensure_aminate_launcher_toolbar():
 
 def ensure_motionbuilder_ui_entry():
     prime_app_theme_baseline()
-    ensure_native_default_ui_snapshot(force=True)
+    ensure_native_default_ui_snapshot(force=False)
     toolbar = _ensure_aminate_launcher_toolbar()
     install_easy_motionbuilder_tooltips()
     return toolbar
@@ -6712,7 +6712,7 @@ def launch_aminate_mobu():
     global _TOOL
     install_runtime_watchers()
     prime_app_theme_baseline()
-    ensure_native_default_ui_snapshot(force=True)
+    ensure_native_default_ui_snapshot(force=False)
     set_active_theme(THEME_MODERN)
     _apply_app_theme(THEME_MODERN)
     _ensure_aminate_launcher_toolbar()

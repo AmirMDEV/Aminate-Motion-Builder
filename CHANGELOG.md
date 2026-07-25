@@ -7,6 +7,7 @@
 - Added a live Setup Warnings page with immediate setup checks, Body Part/Full Body keying controls, and visible warning history.
 - Reflowed long actions and the footer so the full panel remains usable without horizontal scrolling at narrow dock widths.
 - Guarded the host tooltip refresh against deleted PySide wrappers so reloading the dock cannot crash MotionBuilder.
+- Stopped startup and panel launch from rewriting the tracked native UI snapshot on every run; the file is now captured only when it is missing.
 - Fixed Scene Cleaner to preserve ordinary prop markers with any real transform animation key, including a single keyed transform, while still deleting imported junk marker namespaces.
 - Replaced the fragile multi-command smoke sequence with focused live MotionBuilder tab and complete-workflow runtime verifiers.
 - Fixed `Switch to MotionBuilder UI` so it restores the native host stylesheet and palette captured before Modern mode instead of applying a second Aminate-owned Fusion-style theme.
