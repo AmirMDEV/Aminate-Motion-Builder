@@ -2,6 +2,7 @@
 
 ## 2026-07-25
 
+- Put the H.264 `40 Seconds to Mocap` premiere video at the top of the public README and GitHub release notes using GitHub's native inline video player.
 - Prepared the crash-hardened public patch release as Aminate Motion Builder 0.1.1 Beta without rewriting the existing `v0.1-beta` public tag.
 - Removed live-module reloads from startup, launcher, installer, and verification paths so updating Aminate cannot tear down Qt objects underneath MotionBuilder.
 - Removed application-wide `QApplication.setStyle()` calls and made dock/theme teardown deferred and idempotent after reproduced `Qt6Widgets.dll` access violations.
