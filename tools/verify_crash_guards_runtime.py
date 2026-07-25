@@ -29,11 +29,14 @@ def run():
     if not str(aminate_mobu.__file__).lower().endswith("aminate_mobu.py"):
         raise RuntimeError("Unexpected Aminate module path: {0}".format(aminate_mobu.__file__))
 
-    style_pointer = _style_pointer(app)
     dock = aminate_mobu.launch_aminate_mobu()
     _process_events(app)
     if not aminate_mobu._qt_object_is_valid(dock):
         raise RuntimeError("Aminate dock did not open.")
+    panel = aminate_mobu._QT_TOOL
+    panel._apply_theme(aminate_mobu.THEME_MOTIONBUILDER)
+    _process_events(app, 1)
+    style_pointer = _style_pointer(app)
 
     launch_ids = []
     for _index in range(5):
@@ -44,7 +47,6 @@ def run():
             raise RuntimeError("Repeated launch created a second Aminate dock.")
 
     theme_rounds = []
-    panel = aminate_mobu._QT_TOOL
     for _index in range(6):
         panel._apply_theme(aminate_mobu.THEME_MOTIONBUILDER)
         _process_events(app, 1)
