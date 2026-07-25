@@ -1,5 +1,11 @@
 # Aminate Motion Builder
 
+## Watch: 40 Seconds to Mocap
+
+https://github.com/user-attachments/assets/854a48d0-f2cf-4207-86ac-8f107cbc595b
+
+[Open or download the H.264 video](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1.1-beta/40_Seconds_to_Mocap.mp4)
+
 Aminate Motion Builder is a MotionBuilder helper for cleaning mocap scenes, preparing HumanIK character definitions, building frame-zero T-poses, managing constraints, and making common MotionBuilder workflows easier to understand.
 
 This is the public beta repository for **Aminate Motion Builder 0.1.1 Beta**.
@@ -18,25 +24,15 @@ Manual fallback:
 2. Run `install_files/install_motionbuilder_startup.py`.
 3. Run `install_files/launch_aminate_mobu.py`.
 
-## Feature Videos
-
-### Premiere: 40 Seconds To Mocap
-
-<video src="https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/40_Seconds_to_Mocap.mp4" controls muted playsinline width="100%"></video>
-
-[Open the premiere video](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/40_Seconds_to_Mocap.mp4)
+## More Feature Videos
 
 ### Auto Map Skeleton And T-Pose Frame 0
 
-<video src="https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/Mobu_Automap_and_Tpose.mp4" controls muted playsinline width="100%"></video>
-
-[Open the Auto Map and T-Pose video](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/Mobu_Automap_and_Tpose.mp4)
+[Open the Auto Map and T-Pose video](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1.1-beta/Mobu_Automap_and_Tpose.mp4)
 
 ### Scene Cleaner
 
-<video src="https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/Mobu_Scene_Cleaner.mp4" controls muted playsinline width="100%"></video>
-
-[Open the Scene Cleaner video](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1-beta/Mobu_Scene_Cleaner.mp4)
+[Open the Scene Cleaner video](https://github.com/AmirMDEV/Aminate-Motion-Builder/releases/download/v0.1.1-beta/Mobu_Scene_Cleaner.mp4)
 
 ## Screenshots
 
