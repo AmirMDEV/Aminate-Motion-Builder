@@ -85,8 +85,13 @@ def _load_exact_plugin():
 
 def run():
     app = FBApplication()
-    if not app.FileOpen(MIA_SCENE):
-        raise RuntimeError("Could not open Mia tutorial scene.")
+    current_scene = os.path.normcase(os.path.abspath(app.FBXFileName or ""))
+    expected_scene = os.path.normcase(os.path.abspath(MIA_SCENE))
+    if current_scene != expected_scene:
+        raise RuntimeError(
+            "Open the Mia tutorial scene before running the live workflow audit. "
+            "Current scene: {0}".format(app.FBXFileName or "Untitled")
+        )
 
     import aminate_mobu
 
@@ -161,9 +166,10 @@ def run():
         if not skeletons:
             raise AssertionError("Mia scene contains no skeleton models.")
         skeletons[0].Selected = True
+        FBSystem().Scene.Evaluate()
         _click_button(aminate_mobu, panel, 1, "Use Selected Skeleton")
-        scope_label = aminate_mobu.selected_skeleton_scope_label()
         _click_button(aminate_mobu, panel, 1, "Auto Map Skeleton")
+        scope_label = aminate_mobu.selected_skeleton_scope_label()
         character = FBApplication().CurrentCharacter
         mapped_ok = bool(
             character
