@@ -57,16 +57,17 @@ import pyfbsdk_additions
 
 try:
     from PySide6 import QtCore, QtGui, QtWidgets
-    from shiboken6 import getCppPointer, wrapInstance
+    from shiboken6 import getCppPointer, isValid as shiboken_is_valid, wrapInstance
 except Exception:  # pragma: no cover - MotionBuilder fallback
     try:  # pragma: no cover - older MotionBuilder fallback
         from PySide2 import QtCore, QtGui, QtWidgets
-        from shiboken2 import getCppPointer, wrapInstance
+        from shiboken2 import getCppPointer, isValid as shiboken_is_valid, wrapInstance
     except Exception:  # pragma: no cover - no Qt bridge available
         QtCore = None
         QtGui = None
         QtWidgets = None
         getCppPointer = None
+        shiboken_is_valid = None
         wrapInstance = None
 
 
@@ -77,7 +78,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 18
+QT_PANEL_BUILD_VERSION = 26
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -2092,6 +2093,12 @@ def _extract_widget_text(widget):
 def _apply_easy_tooltip_to_widget(widget):
     if widget is None or QtWidgets is None:
         return False
+    if shiboken_is_valid is not None:
+        try:
+            if not shiboken_is_valid(widget):
+                return False
+        except Exception:
+            return False
     class_name = widget.metaObject().className() if hasattr(widget, "metaObject") else widget.__class__.__name__
     if isinstance(widget, QtWidgets.QTabBar):
         changed = False
@@ -2150,10 +2157,29 @@ def refresh_easy_motionbuilder_tooltips():
     if QtWidgets is None or app is None:
         return 0
     touched = 0
-    for widget in app.allWidgets():
-        touched += int(_apply_easy_tooltip_to_widget(widget))
+    try:
+        widgets = list(app.allWidgets())
+    except Exception:
+        widgets = []
+    for widget in widgets:
+        if shiboken_is_valid is not None:
+            try:
+                if not shiboken_is_valid(widget):
+                    continue
+            except Exception:
+                continue
+        try:
+            touched += int(_apply_easy_tooltip_to_widget(widget))
+        except Exception:
+            continue
         try:
             for action in widget.actions():
+                if shiboken_is_valid is not None:
+                    try:
+                        if not shiboken_is_valid(action):
+                            continue
+                    except Exception:
+                        continue
                 touched += int(_apply_easy_tooltip_to_action(action))
         except Exception:
             pass
@@ -2161,6 +2187,12 @@ def refresh_easy_motionbuilder_tooltips():
     if QtGui is not None and main is not None:
         try:
             for action in main.findChildren(QtGui.QAction):
+                if shiboken_is_valid is not None:
+                    try:
+                        if not shiboken_is_valid(action):
+                            continue
+                    except Exception:
+                        continue
                 touched += int(_apply_easy_tooltip_to_action(action))
         except Exception:
             pass
@@ -2783,6 +2815,12 @@ def _warning_allowed(kind, throttle_seconds):
 def _record_warning(kind, message):
     payload = {"kind": str(kind), "message": str(message), "time": _now()}
     _WARNING_HISTORY.append(payload)
+    panel = _QT_TOOL
+    if panel is not None and hasattr(panel, "_refresh_warning_history_view"):
+        try:
+            panel._refresh_warning_history_view()
+        except Exception:
+            pass
     return payload
 
 
@@ -2810,6 +2848,11 @@ def reset_runtime_state(clear_tool=False):
     _WARNING_LAST_SHOWN = {}
     _WARNING_HISTORY = []
     _STATUS_LINES = []
+    if _QT_TOOL is not None and hasattr(_QT_TOOL, "_refresh_warning_history_view"):
+        try:
+            _QT_TOOL._refresh_warning_history_view()
+        except Exception:
+            pass
     remove_runtime_watchers()
     if clear_tool:
         _restore_app_theme()
@@ -3462,11 +3505,11 @@ def _marker_has_transform_animation(marker):
         return False
     for prop_name in MARKER_TRANSFORM_PROPERTY_NAMES:
         prop = marker.PropertyList.Find(prop_name)
-        if _property_has_varying_animation_keys(prop):
+        if _property_has_animation_keys(prop):
             return True
     for attr_name in ("Translation", "Rotation"):
         prop = getattr(marker, attr_name, None)
-        if _property_has_varying_animation_keys(prop):
+        if _property_has_animation_keys(prop):
             return True
     return False
 
@@ -5524,6 +5567,7 @@ def validate_current_character():
 def set_keying_mode_body_part():
     character = _current_character()
     if character is None:
+        _append_status("Body Part Mode could not run: no current character.")
         return False
     character.KeyingMode = FBCharacterKeyingMode.kFBCharacterKeyingBodyPart
     _append_status("Keying mode switched to Body Part.")
@@ -5533,6 +5577,7 @@ def set_keying_mode_body_part():
 def set_keying_mode_full_body():
     character = _current_character()
     if character is None:
+        _append_status("Full Body Mode could not run: no current character.")
         return False
     character.KeyingMode = FBCharacterKeyingMode.kFBCharacterKeyingFullBody
     _append_status("Keying mode switched to Full Body.")
@@ -5843,9 +5888,9 @@ if QtWidgets:
             self.header_title.setObjectName("aminateMobuHeaderTitle")
             self.header_title.setToolTip("Main Aminate Mobu panel title.")
             header_text_layout.addWidget(self.header_title)
-            self.header_subtitle = QtWidgets.QLabel("Scene cleanup  HIK mapping  setup warnings")
+            self.header_subtitle = QtWidgets.QLabel("Choose a workflow tab below.")
             self.header_subtitle.setObjectName("aminateMobuHeaderSubtitle")
-            self.header_subtitle.setToolTip("Quick summary of the main Aminate Mobu jobs.")
+            self.header_subtitle.setToolTip("Switch tabs to open each Aminate Mobu workflow.")
             header_text_layout.addWidget(self.header_subtitle)
             header_layout.addLayout(header_text_layout)
             header_controls_layout = QtWidgets.QGridLayout()
@@ -5868,32 +5913,90 @@ if QtWidgets:
             main_layout.addLayout(header_layout)
             self.body_container = QtWidgets.QWidget()
             self.body_container.setObjectName("aminateMobuBodyContainer")
+            self.body_container.setMinimumWidth(0)
+            self.body_container.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Expanding)
             body_layout = QtWidgets.QVBoxLayout(self.body_container)
             body_layout.setContentsMargins(0, 0, 0, 0)
             body_layout.setSpacing(5)
-            body_layout.addWidget(
-                self._build_intro_card(
-                    "What This Tool Helps With",
-                    "MotionBuilder companion for Aminate Maya. Clean scene junk, auto-map skeletons into HumanIK, warn before incomplete character setup, and launch full-scene History Timeline snapshots.",
-                )
-            )
-            body_layout.addWidget(self._build_actions_group())
-            body_layout.addWidget(self._build_constraints_manager_group())
-            body_layout.addWidget(self._build_definition_manager_group())
-            body_layout.addWidget(self._build_note_group())
             self.status_label = QtWidgets.QLabel("Ready.")
             self.status_label.setObjectName("mayaAnimWorkflowStatusLabel")
             self.status_label.setWordWrap(True)
             self.status_label.setToolTip("This line shows the newest Aminate status message.")
-            body_layout.addWidget(self.status_label)
             self.status_memo = QtWidgets.QPlainTextEdit()
             self.status_memo.setReadOnly(True)
             self.status_memo.setObjectName("aminateMobuStatusMemo")
             self.status_memo.setToolTip("This area shows the full Aminate run history for the current session.")
-            body_layout.addWidget(self.status_memo, 1)
-            footer_layout = QtWidgets.QHBoxLayout()
+            self.status_memo.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Expanding)
+
+            self.workflow_tabs = QtWidgets.QTabWidget()
+            self.workflow_tabs.setObjectName("aminateMobuWorkflowTabs")
+            self.workflow_tabs.setUsesScrollButtons(True)
+            self.workflow_tabs.setDocumentMode(False)
+            self.workflow_tabs.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Expanding)
+            try:
+                workflow_tab_bar = self.workflow_tabs.tabBar()
+                workflow_tab_bar.setElideMode(QtCore.Qt.ElideRight)
+                workflow_tab_bar.setExpanding(False)
+            except Exception:
+                pass
+
+            cleanup_page, cleanup_layout = self._build_workflow_page(
+                "aminateMobuCleanupPage",
+                "Scene Cleanup",
+                "Remove scene junk safely while preserving useful animated prop markers.",
+            )
+            cleanup_layout.addWidget(self._build_cleanup_group())
+            cleanup_layout.addWidget(self._build_note_group())
+            cleanup_layout.addStretch(1)
+            cleanup_index = self.workflow_tabs.addTab(cleanup_page, "Cln")
+            self.workflow_tabs.setTabToolTip(cleanup_index, "Scene Cleanup")
+
+            hik_page, hik_layout = self._build_workflow_page(
+                "aminateMobuHikPage",
+                "HIK Mapping",
+                "Choose one skeleton, build its HumanIK definition, validate it, and prepare a T-pose.",
+            )
+            hik_layout.addWidget(self._build_hik_mapping_group())
+            hik_layout.addWidget(self._build_definition_manager_group())
+            hik_layout.addStretch(1)
+            hik_index = self.workflow_tabs.addTab(hik_page, "HIK")
+            self.workflow_tabs.setTabToolTip(hik_index, "HIK Mapping")
+
+            warnings_page, warnings_layout = self._build_workflow_page(
+                "aminateMobuWarningsPage",
+                "Setup Warnings",
+                "Check the current character and review warnings about unlocked definitions or unsafe control-rig keying modes.",
+            )
+            warnings_layout.addWidget(self._build_setup_warnings_group())
+            warnings_layout.addWidget(self.status_memo, 1)
+            warnings_index = self.workflow_tabs.addTab(warnings_page, "Wrn")
+            self.workflow_tabs.setTabToolTip(warnings_index, "Setup Warnings")
+
+            constraints_page, constraints_layout = self._build_workflow_page(
+                "aminateMobuConstraintsPage",
+                "Constraints",
+                "Inspect, rename, key, offset, and bake MotionBuilder constraints.",
+            )
+            constraints_layout.addWidget(self._build_constraints_manager_group(), 1)
+            constraints_index = self.workflow_tabs.addTab(constraints_page, "Con")
+            self.workflow_tabs.setTabToolTip(constraints_index, "Constraints")
+
+            history_page, history_layout = self._build_workflow_page(
+                "aminateMobuHistoryPage",
+                "History",
+                "Open the full-scene History Timeline for snapshots, restores, branches, and Auto History.",
+            )
+            history_layout.addWidget(self._build_history_group())
+            history_layout.addStretch(1)
+            history_index = self.workflow_tabs.addTab(history_page, "Hist")
+            self.workflow_tabs.setTabToolTip(history_index, "History")
+
+            body_layout.addWidget(self.workflow_tabs, 1)
+            body_layout.addWidget(self.status_label)
+            footer_layout = QtWidgets.QGridLayout()
             footer_layout.setContentsMargins(0, 0, 0, 0)
-            footer_layout.setSpacing(6)
+            footer_layout.setHorizontalSpacing(6)
+            footer_layout.setVerticalSpacing(2)
             self.brand_label = QtWidgets.QLabel(
                 'Built by Amir. Follow Amir at <a href="{0}">followamir.com</a>.'.format(FOLLOW_AMIR_URL)
             )
@@ -5902,22 +6005,25 @@ if QtWidgets:
             self.brand_label.linkActivated.connect(self._open_follow_url)
             self.brand_label.setWordWrap(True)
             self.brand_label.setToolTip("Open followamir.com.")
-            footer_layout.addWidget(self.brand_label, 1)
+            footer_layout.addWidget(self.brand_label, 0, 0, 1, 2)
             self.version_label = QtWidgets.QLabel(TOOL_VERSION)
             self.version_label.setObjectName("mayaAnimWorkflowVersionLabel")
             self.version_label.setToolTip("Shows which Aminate Mobu build is loaded.")
-            footer_layout.addWidget(self.version_label)
+            footer_layout.addWidget(self.version_label, 1, 0)
             self.donate_button = QtWidgets.QPushButton("Donate")
             self.donate_button.setToolTip("Open Amir's PayPal donate link. Set AMIR_PAYPAL_DONATE_URL or AMIR_DONATE_URL to customize it.")
             self.donate_button.clicked.connect(self._open_donate_url)
-            footer_layout.addWidget(self.donate_button)
+            footer_layout.addWidget(self.donate_button, 1, 1)
+            footer_layout.setColumnStretch(0, 1)
             body_layout.addLayout(footer_layout)
             self.scroll_area = QtWidgets.QScrollArea()
             self.scroll_area.setObjectName("aminateMobuScrollArea")
             self.scroll_area.setWidgetResizable(True)
             self.scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+            self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
             self.scroll_area.setWidget(self.body_container)
             main_layout.addWidget(self.scroll_area, 1)
+            self._refresh_warning_history_view()
 
         def _build_intro_card(self, title_text, body_text):
             frame = QtWidgets.QFrame()
@@ -5934,12 +6040,28 @@ if QtWidgets:
             inner.addWidget(body)
             return frame
 
-        def _build_actions_group(self):
-            group = QtWidgets.QGroupBox("Actions")
-            group.setToolTip("Main Aminate tools for cleaning scenes, mapping rigs, and fixing setup issues.")
+        def _build_workflow_page(self, object_name, title_text, body_text):
+            scroll = QtWidgets.QScrollArea()
+            scroll.setObjectName(object_name)
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+            scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+            scroll.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Expanding)
+            page = QtWidgets.QWidget()
+            page.setObjectName(object_name + "Content")
+            layout = QtWidgets.QVBoxLayout(page)
+            layout.setContentsMargins(5, 5, 5, 5)
+            layout.setSpacing(6)
+            layout.addWidget(self._build_intro_card(title_text, body_text))
+            scroll.setWidget(page)
+            return scroll, layout
+
+        def _build_cleanup_group(self):
+            group = QtWidgets.QGroupBox("Scene Cleaner")
+            group.setToolTip("Remove user cameras and junk default markers while keeping animated prop markers.")
             layout = QtWidgets.QVBoxLayout(group)
             layout.setSpacing(5)
-            marker_row = QtWidgets.QHBoxLayout()
+            marker_row = QtWidgets.QVBoxLayout()
             marker_row.setSpacing(5)
             marker_label = QtWidgets.QLabel("Prop Marker Base Name")
             marker_label.setToolTip("Name prefix Aminate uses when renaming animated prop markers.")
@@ -5947,14 +6069,29 @@ if QtWidgets:
             self.prop_marker_base_field = QtWidgets.QLineEdit(get_prop_marker_base_name())
             self.prop_marker_base_field.setPlaceholderText(DEFAULT_PROP_MARKER_BASE_NAME)
             self.prop_marker_base_field.setToolTip("Type the base name for animated prop markers such as Gun or Sword.")
-            marker_row.addWidget(self.prop_marker_base_field, 1)
+            marker_row.addWidget(self.prop_marker_base_field)
             layout.addLayout(marker_row)
-            instruction = QtWidgets.QLabel("Select a skeleton bone or skinned mesh, then click Auto Map Skeleton.")
+            cleaner_grid = QtWidgets.QGridLayout()
+            cleaner_grid.setHorizontalSpacing(5)
+            cleaner_grid.setVerticalSpacing(4)
+            cleaner_grid.addWidget(self._action_button("Refresh", _on_refresh), 0, 0)
+            cleaner_grid.addWidget(self._action_button("Scene Cleaner", self._run_scene_cleaner), 0, 1)
+            cleaner_grid.addWidget(self._action_button("Delete Cameras", _on_clean_cameras), 1, 0)
+            cleaner_grid.addWidget(self._action_button("Delete Markers", self._run_marker_cleanup), 1, 1)
+            layout.addLayout(cleaner_grid)
+            return group
+
+        def _build_hik_mapping_group(self):
+            group = QtWidgets.QGroupBox("HumanIK Mapping")
+            group.setToolTip("Choose a skeleton, map it to HumanIK, validate it, and create a T-pose.")
+            layout = QtWidgets.QVBoxLayout(group)
+            layout.setSpacing(5)
+            instruction = QtWidgets.QLabel("Select a skeleton bone or skinned mesh, then confirm the selection and Auto Map Skeleton.")
             instruction.setObjectName("mayaAnimWorkflowIntroBody")
             instruction.setWordWrap(True)
-            instruction.setToolTip("Auto Map now reads the selected bone, selected bones, or selected mesh to choose the correct skeleton automatically.")
+            instruction.setToolTip("Aminate reads the selected bone, bones, or skinned mesh to choose the correct skeleton.")
             layout.addWidget(instruction)
-            skeleton_row = QtWidgets.QHBoxLayout()
+            skeleton_row = QtWidgets.QVBoxLayout()
             skeleton_row.setSpacing(5)
             skeleton_label = QtWidgets.QLabel("Skeleton Scope")
             skeleton_label.setToolTip("Aminate will Auto Map and T-Pose this selected skeleton hierarchy.")
@@ -5962,25 +6099,63 @@ if QtWidgets:
             self.skeleton_scope_label = QtWidgets.QLabel(selected_skeleton_scope_label())
             self.skeleton_scope_label.setObjectName("aminateMobuThemeBadge")
             self.skeleton_scope_label.setToolTip("Selected skeleton root for Auto Map and T-Pose.")
-            skeleton_row.addWidget(self.skeleton_scope_label, 1)
+            skeleton_row.addWidget(self.skeleton_scope_label)
             layout.addLayout(skeleton_row)
-            cleaner_grid = QtWidgets.QGridLayout()
-            cleaner_grid.setHorizontalSpacing(5)
-            cleaner_grid.setVerticalSpacing(4)
-            cleaner_grid.addWidget(self._action_button("Refresh", _on_refresh), 0, 0)
-            cleaner_grid.addWidget(self._action_button("Scene Cleaner", self._run_scene_cleaner), 0, 1)
-            cleaner_grid.addWidget(self._action_button("Delete Cameras", _on_clean_cameras), 0, 2)
-            cleaner_grid.addWidget(self._action_button("Delete Markers", self._run_marker_cleanup), 0, 3)
-            layout.addLayout(cleaner_grid)
             setup_grid = QtWidgets.QGridLayout()
             setup_grid.setHorizontalSpacing(5)
             setup_grid.setVerticalSpacing(4)
-            setup_grid.addWidget(self._action_button("Auto Map Skeleton", self._auto_map_skeleton), 0, 0)
-            setup_grid.addWidget(self._action_button("Validate Character", _on_validate), 0, 1)
-            setup_grid.addWidget(self._action_button("Body Part Mode", _on_body_part), 0, 2)
-            setup_grid.addWidget(self._action_button("Full Body Mode", _on_full_body), 0, 3)
-            setup_grid.addWidget(self._action_button("T-Pose Frame 0", _on_tpose_frame_zero), 1, 0)
+            setup_grid.addWidget(self._action_button("Use Selected Skeleton", self._use_selected_skeleton), 0, 0)
+            setup_grid.addWidget(self._action_button("Auto Map Skeleton", self._auto_map_skeleton), 1, 0)
+            setup_grid.addWidget(self._action_button("Validate Character", _on_validate), 2, 0)
+            setup_grid.addWidget(self._action_button("T-Pose Frame 0", _on_tpose_frame_zero), 3, 0)
             layout.addLayout(setup_grid)
+            return group
+
+        def _build_setup_warnings_group(self):
+            group = QtWidgets.QGroupBox("Live Setup Warnings")
+            group.setToolTip("Check character setup and choose safe control-rig keying modes.")
+            layout = QtWidgets.QVBoxLayout(group)
+            layout.setSpacing(5)
+            lock_hint = QtWidgets.QLabel("Lock definition: warns when all core HIK links are mapped but the character definition is still unlocked.")
+            lock_hint.setObjectName("aminateMobuGroupHint")
+            lock_hint.setWordWrap(True)
+            layout.addWidget(lock_hint)
+            mode_hint = QtWidgets.QLabel("Control-rig mode: warns when a control is moved while keying mode is Selection instead of Body Part or Full Body.")
+            mode_hint.setObjectName("aminateMobuGroupHint")
+            mode_hint.setWordWrap(True)
+            layout.addWidget(mode_hint)
+            warning_buttons = QtWidgets.QGridLayout()
+            warning_buttons.setHorizontalSpacing(5)
+            warning_buttons.setVerticalSpacing(4)
+            warning_buttons.addWidget(self._action_button("Check Setup Now", self._check_setup_warnings), 0, 0)
+            warning_buttons.addWidget(self._action_button("Body Part Mode", _on_body_part), 1, 0)
+            warning_buttons.addWidget(self._action_button("Full Body Mode", _on_full_body), 2, 0)
+            layout.addLayout(warning_buttons)
+            warning_title = QtWidgets.QLabel("Warning History")
+            warning_title.setObjectName("mayaAnimWorkflowIntroTitle")
+            layout.addWidget(warning_title)
+            self.warning_history_memo = QtWidgets.QPlainTextEdit()
+            self.warning_history_memo.setObjectName("aminateMobuWarningHistory")
+            self.warning_history_memo.setReadOnly(True)
+            self.warning_history_memo.setMinimumHeight(86)
+            self.warning_history_memo.setMinimumWidth(0)
+            self.warning_history_memo.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
+            self.warning_history_memo.setToolTip("Warnings shown during this MotionBuilder session.")
+            layout.addWidget(self.warning_history_memo)
+            status_title = QtWidgets.QLabel("Full Status")
+            status_title.setObjectName("mayaAnimWorkflowIntroTitle")
+            layout.addWidget(status_title)
+            return group
+
+        def _build_history_group(self):
+            group = QtWidgets.QGroupBox("History Timeline")
+            group.setToolTip("Open full-scene snapshots, restores, branches, milestones, and Auto History.")
+            layout = QtWidgets.QVBoxLayout(group)
+            layout.setSpacing(5)
+            hint = QtWidgets.QLabel("Save the scene to a writable folder first, then open History Timeline to create and restore full-scene snapshots.")
+            hint.setObjectName("aminateMobuGroupHint")
+            hint.setWordWrap(True)
+            layout.addWidget(hint)
             history_row = QtWidgets.QHBoxLayout()
             history_row.setSpacing(5)
             history_row.addWidget(self._action_button("History Timeline", _on_history_timeline))
@@ -6002,6 +6177,8 @@ if QtWidgets:
             self.constraints_table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
             self.constraints_table.setToolTip("Select constraints here, then rename or key them.")
             self.constraints_table.setMinimumHeight(92)
+            self.constraints_table.setMinimumWidth(0)
+            self.constraints_table.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
             self.constraints_table.setMouseTracking(True)
             self.constraints_table.itemEntered.connect(self._preview_constraint_table_item)
             self.constraints_table.itemSelectionChanged.connect(self._preview_selected_constraint)
@@ -6015,12 +6192,12 @@ if QtWidgets:
             button_grid.setHorizontalSpacing(5)
             button_grid.setVerticalSpacing(4)
             button_grid.addWidget(self._action_button("List Constraints", self._refresh_constraints_manager), 0, 0)
-            button_grid.addWidget(self._action_button("Rename To Easy Names", self._rename_selected_constraints_easy), 0, 1)
-            button_grid.addWidget(self._action_button("Rename All Easy", self._rename_all_constraints_easy), 0, 2)
-            button_grid.addWidget(self._action_button("Key Selected Props", self._key_selected_constraint_props), 0, 3)
-            button_grid.addWidget(self._action_button("Bake Options", self._open_bake_options), 1, 0)
-            button_grid.addWidget(self._action_button("Save To Skeleton", self._save_to_skeleton), 1, 1)
-            button_grid.addWidget(self._action_button("Save To Control Rig", self._save_to_control_rig), 1, 2)
+            button_grid.addWidget(self._action_button("Rename To Easy Names", self._rename_selected_constraints_easy), 1, 0)
+            button_grid.addWidget(self._action_button("Rename All Easy", self._rename_all_constraints_easy), 2, 0)
+            button_grid.addWidget(self._action_button("Key Selected Props", self._key_selected_constraint_props), 3, 0)
+            button_grid.addWidget(self._action_button("Bake Options", self._open_bake_options), 4, 0)
+            button_grid.addWidget(self._action_button("Save To Skeleton", self._save_to_skeleton), 5, 0)
+            button_grid.addWidget(self._action_button("Save To Control Rig", self._save_to_control_rig), 6, 0)
             layout.addLayout(button_grid)
 
             prop_offset_group = QtWidgets.QGroupBox("Prop Take Offset Manager")
@@ -6043,10 +6220,10 @@ if QtWidgets:
             prop_offset_buttons.setHorizontalSpacing(5)
             prop_offset_buttons.setVerticalSpacing(4)
             prop_offset_buttons.addWidget(self._action_button("Preview Offset Only", self._preview_prop_offset_only), 0, 0)
-            prop_offset_buttons.addWidget(self._action_button("Set Offset For This Take", self._set_prop_offset_this_take), 0, 1)
-            prop_offset_buttons.addWidget(self._action_button("Set Offset For All Takes", self._set_prop_offset_all_takes), 0, 2)
-            prop_offset_buttons.addWidget(self._action_button("Mute Constraints For Setup", self._mute_prop_constraints_setup), 1, 0)
-            prop_offset_buttons.addWidget(self._action_button("Restore Constraints", self._restore_prop_constraints_setup), 1, 1)
+            prop_offset_buttons.addWidget(self._action_button("Set Offset For This Take", self._set_prop_offset_this_take), 1, 0)
+            prop_offset_buttons.addWidget(self._action_button("Set Offset For All Takes", self._set_prop_offset_all_takes), 2, 0)
+            prop_offset_buttons.addWidget(self._action_button("Mute Constraints For Setup", self._mute_prop_constraints_setup), 3, 0)
+            prop_offset_buttons.addWidget(self._action_button("Restore Constraints", self._restore_prop_constraints_setup), 4, 0)
             prop_offset_layout.addLayout(prop_offset_buttons)
             layout.addWidget(prop_offset_group)
 
@@ -6063,7 +6240,7 @@ if QtWidgets:
             layout.addWidget(self.constraint_preview_title)
             self.constraint_preview = AspectRatioPixmapLabel()
             self.constraint_preview.setObjectName("aminateMobuConstraintPreview")
-            self.constraint_preview.setMinimumSize(220, 150)
+            self.constraint_preview.setMinimumSize(0, 150)
             self.constraint_preview.setAlignment(QtCore.Qt.AlignCenter)
             self.constraint_preview.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
             self.constraint_preview.setToolTip("Simple visual constraint preview.")
@@ -6105,9 +6282,9 @@ if QtWidgets:
             button_grid.setHorizontalSpacing(5)
             button_grid.setVerticalSpacing(4)
             button_grid.addWidget(self._action_button("Save Definition", self._save_definition), 0, 0)
-            button_grid.addWidget(self._action_button("Load Definition", self._load_definition), 0, 1)
-            button_grid.addWidget(self._action_button("Rename Definition", self._rename_definition), 0, 2)
-            button_grid.addWidget(self._action_button("Delete Definition", self._delete_definition), 0, 3)
+            button_grid.addWidget(self._action_button("Load Definition", self._load_definition), 1, 0)
+            button_grid.addWidget(self._action_button("Rename Definition", self._rename_definition), 2, 0)
+            button_grid.addWidget(self._action_button("Delete Definition", self._delete_definition), 3, 0)
             layout.addLayout(button_grid)
             self._refresh_definition_manager()
             return group
@@ -6128,6 +6305,8 @@ if QtWidgets:
 
         def _action_button(self, caption, callback):
             button = QtWidgets.QPushButton(caption)
+            button.setMinimumWidth(0)
+            button.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Fixed)
             tooltip = _easy_tooltip_text(caption, "QPushButton")
             if tooltip:
                 button.setToolTip(tooltip)
@@ -6175,11 +6354,31 @@ if QtWidgets:
         def _use_selected_skeleton(self):
             set_selected_skeleton_scope_from_selection()
             self._refresh_skeleton_scope_label()
+            _refresh_dashboard()
 
         def _auto_map_skeleton(self):
             auto_map_character(create_control_rig=False, characterize=True, activate_input=False)
             self._refresh_skeleton_scope_label()
             _refresh_dashboard()
+
+        def _check_setup_warnings(self):
+            result = validate_current_character()
+            self._refresh_warning_history_view()
+            _refresh_dashboard()
+            return result
+
+        def _refresh_warning_history_view(self):
+            memo = getattr(self, "warning_history_memo", None)
+            if memo is None:
+                return
+            history = get_warning_history()
+            if not history:
+                memo.setPlainText("No setup warnings shown in this session.")
+                return
+            lines = []
+            for item in history:
+                lines.append("{0}: {1}".format(item.get("kind", "warning"), item.get("message", "")))
+            memo.setPlainText("\n\n".join(lines))
 
         def _refresh_constraints_manager(self):
             table = getattr(self, "constraints_table", None)

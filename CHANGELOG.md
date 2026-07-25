@@ -2,6 +2,13 @@
 
 ## 2026-07-25
 
+- Replaced the fake workflow heading with real Scene Cleanup, HIK Mapping, Setup Warnings, Constraints, and History tabs that remain clickable in a 220-pixel dock.
+- Wired the missing `Use Selected Skeleton` action and moved each workflow's controls into its own readable, scrollable page.
+- Added a live Setup Warnings page with immediate setup checks, Body Part/Full Body keying controls, and visible warning history.
+- Reflowed long actions and the footer so the full panel remains usable without horizontal scrolling at narrow dock widths.
+- Guarded the host tooltip refresh against deleted PySide wrappers so reloading the dock cannot crash MotionBuilder.
+- Fixed Scene Cleaner to preserve ordinary prop markers with any real transform animation key, including a single keyed transform, while still deleting imported junk marker namespaces.
+- Replaced the fragile multi-command smoke sequence with focused live MotionBuilder tab and complete-workflow runtime verifiers.
 - Fixed `Switch to MotionBuilder UI` so it restores the native host stylesheet and palette captured before Modern mode instead of applying a second Aminate-owned Fusion-style theme.
 - Kept MotionBuilder's native Qt style object in place while Modern mode is active, allowing a complete return to normal host chrome without moving the window or replacing the dock layout.
 - Replaced the stale snapshot-only theme verifier with live host checks for stylesheet, visible palette roles, theme ownership, window placement, and the real theme-button journey.

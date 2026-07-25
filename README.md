@@ -48,6 +48,10 @@ Manual fallback:
 
 ## Main Features
 
+### Workflow Tabs
+
+Aminate separates its tools into five real workflow tabs: Scene Cleanup, HIK Mapping, Setup Warnings, Constraints, and History. The tabs remain reachable in a narrow dock and each page scrolls independently, so switching workflows does not move or replace the MotionBuilder layout.
+
 ### Scene Cleaner
 
 Scene Cleaner removes common import clutter so a MotionBuilder scene is easier to work with before characterization or retargeting.
@@ -94,6 +98,18 @@ It can:
 - rename definitions;
 - remove old definitions;
 - reduce repeated setup when working with similar rigs.
+
+### Setup Warnings
+
+Setup Warnings checks the current HumanIK setup and keeps the important warnings visible inside Aminate.
+
+It can:
+
+- check the current character setup immediately;
+- warn when a character definition still needs to be locked;
+- warn when the control rig keying mode does not match the intended transform workflow;
+- switch the active character between Body Part and Full Body keying modes;
+- retain a readable warning history on the Warnings tab.
 
 ### Constraints Manager
 
