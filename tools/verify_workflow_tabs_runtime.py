@@ -35,8 +35,8 @@ def _button_text(button):
 
 
 def run():
+    dock = aminate_mobu.launch_aminate_mobu()
     panel = aminate_mobu._QT_TOOL
-    dock = aminate_mobu._QT_DOCK
     if panel is None or dock is None:
         raise RuntimeError("Aminate Mobu Qt panel is not open.")
     if getattr(panel, "_build_version", 0) != aminate_mobu.QT_PANEL_BUILD_VERSION:

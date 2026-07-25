@@ -10,7 +10,7 @@ FORBIDDEN = {
     "aminate_mobu.py": [
         "app.setStyle(",
         "importlib.reload(aminate_mobu)",
-        "def _on_qt_panel_destroyed(*_args)",
+        "destroyed.connect(",
     ],
     "install_motionbuilder_startup.py": [
         "importlib.reload(aminate_mobu)",
@@ -33,7 +33,6 @@ REQUIRED = {
     "aminate_mobu.py": [
         "QT_PANEL_BUILD_VERSION = 27",
         "def _qt_object_is_valid(value):",
-        "if _QT_TOOL is not None and id(_QT_TOOL) == panel_id:",
         "QtCore.QTimer.singleShot(0, _restore_app_theme)",
     ],
     "install_aminate_mobu_dragdrop.py": [
