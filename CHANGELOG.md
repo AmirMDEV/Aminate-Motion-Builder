@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-25
+
+- Fixed `Switch to MotionBuilder UI` so it restores the native host stylesheet and palette captured before Modern mode instead of applying a second Aminate-owned Fusion-style theme.
+- Kept MotionBuilder's native Qt style object in place while Modern mode is active, allowing a complete return to normal host chrome without moving the window or replacing the dock layout.
+- Replaced the stale snapshot-only theme verifier with live host checks for stylesheet, visible palette roles, theme ownership, window placement, and the real theme-button journey.
+
 ## 2026-04-26
 
 - Added take-aware Prop Take Offset reapply so stored prop constraint offsets are restored when switching between MotionBuilder takes during a session.

@@ -157,7 +157,7 @@ It can:
 - switch to the Modern UI by default after installation;
 - restyle Aminate-owned controls;
 - modernize themeable MotionBuilder chrome where the plugin layer can safely do so;
-- return to the default MotionBuilder UI path when requested.
+- return to the exact native MotionBuilder stylesheet and palette captured before Modern mode, without moving the window or replacing the dock layout.
 
 ### Rich Tooltips
 

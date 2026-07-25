@@ -77,7 +77,7 @@ QT_WINDOW_OBJECT_NAME = "aminateMobuWindow"
 QT_DOCK_OBJECT_NAME = "aminateMobuDock"
 QT_LAUNCHER_TOOLBAR_OBJECT_NAME = "aminateMobuLauncherToolbar"
 QT_LAUNCHER_BUTTON_OBJECT_NAME = "aminateMobuLauncherButton"
-QT_PANEL_BUILD_VERSION = 16
+QT_PANEL_BUILD_VERSION = 17
 LAUNCHER_ICON_RELATIVE_PATH = os.path.join("assets", "icons", "aminate_toolbar_18.png")
 STARTUP_BOOTSTRAP_FILENAME = "aminate_mobu_startup.py"
 MB_DOCUMENTS_ROOT = os.path.join(
@@ -2227,6 +2227,38 @@ def _copy_palette(palette):
         return None
 
 
+def _palette_role_signature(palette):
+    if QtGui is None or palette is None:
+        return None
+    groups = (
+        QtGui.QPalette.Active,
+        QtGui.QPalette.Inactive,
+        QtGui.QPalette.Disabled,
+    )
+    role_names = (
+        "Window",
+        "WindowText",
+        "Base",
+        "AlternateBase",
+        "Text",
+        "Button",
+        "ButtonText",
+        "BrightText",
+        "Highlight",
+        "HighlightedText",
+        "ToolTipBase",
+        "ToolTipText",
+        "Link",
+        "LinkVisited",
+    )
+    roles = [getattr(QtGui.QPalette, name) for name in role_names if hasattr(QtGui.QPalette, name)]
+    return tuple(int(palette.color(group, role).rgba()) for group in groups for role in roles)
+
+
+def _palettes_match(first, second):
+    return _palette_role_signature(first) == _palette_role_signature(second)
+
+
 def _make_motionbuilder_dark_palette():
     if QtGui is None:
         return None
@@ -2393,28 +2425,33 @@ def _apply_motionbuilder_host_theme(app=None):
     app = app or _qt_application()
     if app is None:
         return False
-    try:
-        app.setStyle("Fusion")
-    except Exception:
-        pass
-    palette = _make_motionbuilder_dark_palette()
-    if palette is not None:
+    _sync_baseline_from_app_cache(app)
+    if _APP_THEME_BASELINE is None or _APP_THEME_BASELINE_PALETTE is None:
+        if not prime_app_theme_baseline():
+            return False
+    if _APP_THEME_BASELINE_STYLE:
         try:
-            app.setPalette(palette)
+            app.setStyle(_APP_THEME_BASELINE_STYLE)
         except Exception:
             pass
-    app.setStyleSheet(_app_theme_stylesheet(THEME_MOTIONBUILDER))
+    try:
+        app.setPalette(_copy_palette(_APP_THEME_BASELINE_PALETTE))
+    except Exception:
+        return False
+    try:
+        app.setStyleSheet(_APP_THEME_BASELINE or "")
+    except Exception:
+        return False
     _APP_THEME_OWNED = False
     _refresh_qt_theme()
-    return True
+    return (
+        (app.styleSheet() or "") == (_APP_THEME_BASELINE or "")
+        and _palettes_match(app.palette(), _APP_THEME_BASELINE_PALETTE)
+    )
 
 
 def _restore_app_theme():
-    global _APP_THEME_BASELINE, _APP_THEME_OWNED, _APP_THEME_BASELINE_PALETTE, _APP_THEME_BASELINE_STYLE
     app = _qt_application()
-    _sync_baseline_from_app_cache(app)
-    if app is None or not _APP_THEME_OWNED:
-        return False
     return _apply_motionbuilder_host_theme(app)
 
 
@@ -2426,11 +2463,7 @@ def _apply_app_theme(theme_key):
     theme_key = _normalize_theme_key(theme_key)
     prime_app_theme_baseline()
     if theme_key == THEME_MOTIONBUILDER:
-        return _apply_motionbuilder_host_theme(app)
-    try:
-        app.setStyle("Fusion")
-    except Exception:
-        pass
+        return _restore_app_theme()
     palette = _make_modern_dark_palette()
     if palette is not None:
         try:
