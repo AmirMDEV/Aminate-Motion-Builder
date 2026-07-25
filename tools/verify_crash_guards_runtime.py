@@ -51,6 +51,7 @@ def run():
         native_ok = (
             aminate_mobu.get_active_theme() == aminate_mobu.THEME_MOTIONBUILDER
             and aminate_mobu._APP_THEME_OWNED is False
+            and _style_pointer(app) == style_pointer
         )
         panel._apply_theme(aminate_mobu.THEME_MODERN)
         _process_events(app, 1)
@@ -58,16 +59,18 @@ def run():
             aminate_mobu.get_active_theme() == aminate_mobu.THEME_MODERN
             and aminate_mobu._APP_THEME_OWNED is True
         )
-        pointer_ok = _style_pointer(app) == style_pointer
+        panel._apply_theme(aminate_mobu.THEME_MOTIONBUILDER)
+        _process_events(app, 1)
+        restored_pointer_ok = _style_pointer(app) == style_pointer
         theme_rounds.append(
             {
                 "native_ok": native_ok,
                 "modern_ok": modern_ok,
-                "style_pointer_unchanged": pointer_ok,
+                "restored_style_pointer_unchanged": restored_pointer_ok,
             }
         )
-        if not (native_ok and modern_ok and pointer_ok):
-            raise RuntimeError("Theme switch changed the Qt style object or state.")
+        if not (native_ok and modern_ok and restored_pointer_ok):
+            raise RuntimeError("Theme switch did not restore the native Qt style or state.")
 
     close_reopen = []
     for _index in range(3):
@@ -85,7 +88,6 @@ def run():
         reopened_ok = (
             aminate_mobu._qt_object_is_valid(reopened)
             and aminate_mobu._qt_object_is_valid(aminate_mobu._QT_TOOL)
-            and _style_pointer(app) == style_pointer
         )
         close_reopen.append({"closed_ok": closed_ok, "reopened_ok": reopened_ok})
         if not (closed_ok and reopened_ok):
