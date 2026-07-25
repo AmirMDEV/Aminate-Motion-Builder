@@ -23,10 +23,12 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 
 ## What Aminate Can Do
 
+- **Real workflow tabs**: switches reliably between Scene Cleanup, HIK Mapping, Setup Warnings, Constraints, and History, even in a narrow MotionBuilder dock.
 - **Drag and drop installer**: unzip the release, open the install folder, then drag `Install_Aminate_Motion_Builder.py` into the MotionBuilder viewport. Aminate installs the startup hook, opens the panel, and loads on future MotionBuilder launches.
 - **Scene Cleaner**: removes common import junk, user cameras, and unused unlabeled markers while preserving markers that appear to carry useful prop animation.
 - **Auto Map Skeleton**: reads the selected skeleton, bone, or skinned mesh and creates numbered MotionBuilder character definitions such as `animate_auto_1`, `animate_auto_2`, and `animate_auto_3`.
 - **T-Pose Frame 0**: keys a MotionBuilder-friendly T-pose on frame 0 so source and target characters can be prepared for cleaner retargeting.
+- **Setup Warnings**: checks the current HumanIK setup, records lock/keying-mode warnings, and switches between Body Part and Full Body keying.
 - **Definition Manager**: saves, loads, renames, and removes reusable skeleton definitions from inside Aminate.
 - **Constraints Manager**: focuses on the useful MotionBuilder constraint assets, adds short visual explanations, supports easier naming, and helps with keying and bake/plot workflows.
 - **Prop Take Offset Manager**: previews and stores selected prop constraint offsets per take so props can start in different places without forcing an immediate bake loop on every take.
@@ -47,13 +49,15 @@ This is the first public beta of Aminate Motion Builder for Autodesk MotionBuild
 
 1. Open MotionBuilder.
 2. Aminate opens with the Modern UI by default after installation.
-3. Select a skeleton, any bone in a skeleton, or a skinned mesh.
-4. Use **Auto Map Skeleton** to create a MotionBuilder character definition.
-5. Use **T-Pose Frame 0** to place the selected character into a frame-zero T-pose.
-6. Use **Scene Cleaner** before characterization or retargeting when an imported scene contains cameras, junk markers, or capture leftovers.
-7. Use **Definition Manager** to reuse known-good mappings.
-8. Use **Constraints Manager** when setting up parent, position, rotation, aim, IK, path, or relation-style constraint workflows.
-9. Use **Prop Take Offset Manager** when a prop constraint works on one take but needs a different offset on another take.
+3. Choose the Scene Cleanup, HIK Mapping, Setup Warnings, Constraints, or History tab for the job you are doing.
+4. Select a skeleton, any bone in a skeleton, or a skinned mesh.
+5. Use **Auto Map Skeleton** to create a MotionBuilder character definition.
+6. Use **T-Pose Frame 0** to place the selected character into a frame-zero T-pose.
+7. Use **Scene Cleaner** before characterization or retargeting when an imported scene contains cameras, junk markers, or capture leftovers.
+8. Use **Setup Warnings** to check the current character and choose Body Part or Full Body keying.
+9. Use **Definition Manager** to reuse known-good mappings.
+10. Use **Constraints Manager** when setting up parent, position, rotation, aim, IK, path, or relation-style constraint workflows.
+11. Use **Prop Take Offset Manager** when a prop constraint works on one take but needs a different offset on another take.
 
 ## Beta Notes
 
